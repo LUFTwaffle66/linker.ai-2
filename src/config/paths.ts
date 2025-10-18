@@ -100,5 +100,8 @@ export const paths = {
     postProject: {
       getHref: () => '/post-project',
     },
+    activeProject: {
+      getHref: (projectId: string) => `/projects/${projectId}`,
+    },
   },
 } as const;
