@@ -93,5 +93,9 @@ export const paths = {
     clientProfile: {
       getHref: () => '/app/client-profile',
     },
+    submitProposal: {
+      getHref: (projectId?: number | string) =>
+        `/submit-proposal${projectId ? `?projectId=${projectId}` : ''}`,
+    },
   },
 } as const;

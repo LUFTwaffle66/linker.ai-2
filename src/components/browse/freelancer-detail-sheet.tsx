@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Expert } from '@/types/browse';
+import { type Expert } from '@/types/browse';
 import { cn } from '@/lib/utils';
 import { AuthRequiredDialog } from './auth-required-dialog';
 

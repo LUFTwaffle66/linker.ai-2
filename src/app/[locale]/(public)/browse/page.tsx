@@ -28,6 +28,7 @@ import { FreelancerDetailSheet } from '@/components/browse/freelancer-detail-she
 import { BrowseFilters } from '@/components/browse/browse-filters';
 import { type Project, type Expert } from '@/types/browse';
 import { MOCK_PROJECTS, MOCK_FREELANCERS } from '@/lib/mock-data';
+import { paths } from '@/config/paths';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -114,13 +115,13 @@ export default function BrowsePage() {
   );
 
   const handleSubmitProposal = (project: Project) => {
-    console.log('Submit proposal for:', project);
-    // Handle proposal submission
+    // Navigate to submit proposal page with project ID
+    router.push(paths.app.submitProposal.getHref(project.id));
   };
 
   const handleSendMessage = (freelancer: Expert) => {
     console.log('Send message to:', freelancer);
-    // Handle message sending
+    // TODO: Navigate to messages or open messaging interface
   };
 
   return (
