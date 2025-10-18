@@ -88,10 +88,10 @@ export const paths = {
       getHref: () => '/app/settings',
     },
     freelancerProfile: {
-      getHref: () => '/app/freelancer-profile',
+      getHref: (freelancerId: string) => `/freelancer/${freelancerId}`,
     },
     clientProfile: {
-      getHref: () => '/app/client-profile',
+      getHref: (clientId: string) => `/client/${clientId}`,
     },
     submitProposal: {
       getHref: (projectId?: number | string) =>
