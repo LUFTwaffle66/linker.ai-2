@@ -68,7 +68,7 @@ export async function createOrGetConversation(userId1: string, userId2: string):
     return acc;
   }, {} as Record<string, number>) || {};
 
-  const conversationId = conversationCounts && Object.keys(conversationCounts).find((id) => conversationCounts[id] > 1);
+  const conversationId = conversationCounts && Object.keys(conversationCounts).find((id) => (conversationCounts as any)[id] > 1);
 
   if (conversationId) {
     return conversationId;
