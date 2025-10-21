@@ -79,8 +79,18 @@ export default function BrowsePage() {
 
   // Update URL when tab changes
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab as 'projects' | 'freelancers');
-    updateURL({ tab, q: searchQuery });
+    const newTab = tab as 'projects' | 'freelancers';
+    setActiveTab(newTab);
+    setSearchQuery(''); // Clear search query on tab change
+
+    // Clear filters for the new tab
+    if (newTab === 'projects') {
+      setProjectFilters({});
+    } else {
+      setFreelancerFilters({});
+    }
+
+    updateURL({ tab: newTab, q: '' });
   };
 
   // Update URL search params
@@ -198,18 +208,6 @@ export default function BrowsePage() {
               Filters
             </Button>
           </div>
-
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2 max-w-md">
-              <TabsTrigger value="projects">
-                Projects ({projectsLoading ? '...' : projects.length})
-              </TabsTrigger>
-              <TabsTrigger value="freelancers">
-                AI Experts ({freelancersLoading ? '...' : freelancers.length})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

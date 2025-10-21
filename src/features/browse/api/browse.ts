@@ -57,6 +57,9 @@ export interface FreelancerFilters {
   minExperience?: number;
   location?: string;
   search?: string;
+  minRating?: number;
+  availableOnly?: boolean;
+  topRatedOnly?: boolean;
 }
 
 /**

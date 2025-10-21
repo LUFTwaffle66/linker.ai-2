@@ -4,6 +4,7 @@ import { Star, DollarSign, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -49,23 +50,12 @@ export function BrowseFiltersComponent({
         <CardTitle className="text-lg">Filters</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Search */}
-        <div>
-          <Label className="font-medium">Search</Label>
-          <Input
-            placeholder={activeTab === 'projects' ? 'Search projects...' : 'Search freelancers...'}
-            value={filters.search || ''}
-            onChange={(e) => updateFilters('search', e.target.value)}
-            className="mt-2"
-          />
-        </div>
-
         {/* Category Filter */}
         {activeTab === 'projects' && (
           <div>
             <Label className="font-medium">Category</Label>
             <Select
-              value={filters.category || 'all'}
+              value={(filters as BrowseFilters).category || 'all'}
               onValueChange={(value) => updateFilters('category', value === 'all' ? undefined : value)}
             >
               <SelectTrigger className="mt-2">
@@ -100,18 +90,16 @@ export function BrowseFiltersComponent({
           </Label>
           <Select
             value={
-              filters.budgetMin || filters.budgetMax
-                ? `${filters.budgetMin || 0}-${filters.budgetMax || 999999}`
+              (filters as BrowseFilters).minBudget || (filters as BrowseFilters).maxBudget
+                ? `${(filters as BrowseFilters).minBudget || 0}-${(filters as BrowseFilters).maxBudget || 999999}`
                 : 'all'
             }
             onValueChange={(value) => {
               if (value === 'all') {
-                updateFilters('budgetMin', undefined);
-                updateFilters('budgetMax', undefined);
+                onFiltersChange({ ...filters, minBudget: undefined, maxBudget: undefined });
               } else {
                 const [min, max] = value.split('-').map(v => v === '999999' ? undefined : parseInt(v));
-                updateFilters('budgetMin', min || undefined);
-                updateFilters('budgetMax', max || undefined);
+                onFiltersChange({ ...filters, minBudget: min || undefined, maxBudget: max || undefined });
               }
             }}
           >
@@ -135,15 +123,17 @@ export function BrowseFiltersComponent({
         </div>
 
         {/* Location */}
+        {activeTab === 'freelancers' && (
         <div>
           <Label className="font-medium">Location</Label>
           <Input
             placeholder="Enter location..."
-            value={filters.location || ''}
+            value={(filters as FreelancerFilters).location || ''}
             onChange={(e) => updateFilters('location', e.target.value)}
             className="mt-2"
           />
         </div>
+        )}
 
         {/* Experience Level (for freelancers) */}
         {activeTab === 'freelancers' && (
@@ -179,18 +169,16 @@ export function BrowseFiltersComponent({
         {availableSkills.length > 0 && (
           <div>
             <Label className="font-medium">Skills & Technologies</Label>
-            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
-              {availableSkills.slice(0, 10).map((skill) => (
-                <div key={skill} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={skill}
-                    checked={(filters.skills || []).includes(skill)}
-                    onCheckedChange={() => toggleSkill(skill)}
-                  />
-                  <Label htmlFor={skill} className="text-sm font-normal cursor-pointer">
-                    {skill}
-                  </Label>
-                </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {availableSkills.slice(0, 15).map((skill) => (
+                <Badge
+                  key={skill}
+                  variant={(filters.skills || []).includes(skill) ? 'default' : 'secondary'}
+                  onClick={() => toggleSkill(skill)}
+                  className="cursor-pointer"
+                >
+                  {skill}
+                </Badge>
               ))}
             </div>
           </div>
@@ -204,13 +192,13 @@ export function BrowseFiltersComponent({
               <div className="mt-3 space-y-2">
                 {[5, 4, 3].map((rating) => (
                   <div key={rating} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`rating-${rating}`}
-                      checked={(filters as FreelancerFilters).minRating === rating}
-                      onCheckedChange={(checked) =>
-                        updateFilters('minRating', checked ? rating : undefined)
-                      }
-                    />
+                  <Checkbox
+                    id={`rating-${rating}`}
+                    checked={(filters as any).minRating === rating}
+                    onCheckedChange={(checked) =>
+                      updateFilters('minRating', checked ? rating : undefined)
+                    }
+                  />
                     <Label
                       htmlFor={`rating-${rating}`}
                       className="flex items-center space-x-1 text-sm font-normal cursor-pointer"
@@ -231,7 +219,7 @@ export function BrowseFiltersComponent({
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="available"
-                    checked={(filters as FreelancerFilters).availableOnly || false}
+                    checked={(filters as any).availableOnly || false}
                     onCheckedChange={(checked) => updateFilters('availableOnly', checked)}
                   />
                   <Label htmlFor="available" className="text-sm font-normal cursor-pointer">
@@ -241,7 +229,7 @@ export function BrowseFiltersComponent({
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="top-rated"
-                    checked={(filters as FreelancerFilters).topRatedOnly || false}
+                    checked={(filters as any).topRatedOnly || false}
                     onCheckedChange={(checked) => updateFilters('topRatedOnly', checked)}
                   />
                   <Label htmlFor="top-rated" className="text-sm font-normal cursor-pointer">
