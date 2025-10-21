@@ -62,7 +62,7 @@ export function ConversationItem({
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <p className="flex-1 text-sm text-muted-foreground truncate">
+          <p className="flex-1 text-sm text-muted-foreground truncate overflow-hidden text-ellipsis">
             {conversation.lastMessage.senderId === currentUserId && <span className="font-medium">You: </span>}
             {conversation.lastMessage.content}
           </p>

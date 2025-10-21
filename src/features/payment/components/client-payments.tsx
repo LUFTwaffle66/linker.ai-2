@@ -17,16 +17,8 @@ import {
   DollarSign,
   Briefcase,
   History,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Download,
   Plus,
-  Building,
-  FileText,
   CheckCircle,
-  Lock,
-  Clock,
-  AlertCircle,
 } from 'lucide-react';
 import {
   useClientBalance,
@@ -37,6 +29,9 @@ import {
   useReleaseFinalPayment,
 } from '../hooks';
 import { toast } from 'sonner';
+import { BalanceCard } from './shared/balance-card';
+import { TransactionHistory } from './shared/transaction-history';
+import { PaymentMethods } from './shared/payment-methods';
 
 export function ClientPayments() {
   const [addFundsAmount, setAddFundsAmount] = useState('');
@@ -85,102 +80,30 @@ export function ClientPayments() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">Account Balance</p>
-                <Wallet className="w-5 h-5 text-primary" />
-              </div>
-              <p className="text-3xl mb-1">${balance?.availableBalance.toLocaleString()}</p>
-              <Dialog open={showAddFunds} onOpenChange={setShowAddFunds}>
-                <DialogTrigger asChild>
-                  <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Funds
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Funds to Account</DialogTitle>
-                    <DialogDescription>Add funds to your account for faster project funding</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="addAmount">Amount</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                        <Input
-                          id="addAmount"
-                          type="number"
-                          placeholder="0.00"
-                          value={addFundsAmount}
-                          onChange={(e) => setAddFundsAmount(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">Minimum: $10 • Maximum: $100,000</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Payment Method</Label>
-                      <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select payment method" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {paymentMethods?.map((method) => (
-                            <SelectItem key={method.id} value={method.id}>
-                              {method.type} ****{method.last4}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowAddFunds(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleAddFunds} disabled={addFundsMutation.isPending}>
-                      {addFundsMutation.isPending ? 'Processing...' : 'Add Funds'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">In Escrow</p>
-                <Shield className="w-5 h-5 text-cyan-500" />
-              </div>
-              <p className="text-3xl mb-1">${balance?.escrowBalance.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Protected funds</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">Pending Payments</p>
-                <DollarSign className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <p className="text-3xl mb-1">${balance?.pendingPayments.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Processing</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">Total Spent</p>
-                <DollarSign className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <p className="text-3xl mb-1">${balance?.totalSpent.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">All time</p>
-            </CardContent>
-          </Card>
+          <BalanceCard
+            title="Account Balance"
+            amount={balance?.availableBalance || 0}
+            icon={<Wallet className="w-5 h-5 text-primary" />}
+            onAddFunds={() => setShowAddFunds(true)}
+          />
+          <BalanceCard
+            title="In Escrow"
+            amount={balance?.escrowBalance || 0}
+            icon={<Shield className="w-5 h-5 text-cyan-500" />}
+            footerText="Protected funds"
+          />
+          <BalanceCard
+            title="Pending Payments"
+            amount={balance?.pendingPayments || 0}
+            icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
+            footerText="Processing"
+          />
+          <BalanceCard
+            title="Total Spent"
+            amount={balance?.totalSpent || 0}
+            icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
+            footerText="All time"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -262,113 +185,13 @@ export function ClientPayments() {
               </TabsContent>
 
               <TabsContent value="history">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Transaction History</CardTitle>
-                        <CardDescription>All payments and account activity</CardDescription>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {transactionsLoading ? (
-                        <p>Loading...</p>
-                      ) : (
-                        transactions?.map((transaction) => (
-                          <div
-                            key={transaction.id}
-                            className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-4 flex-1">
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  transaction.amount > 0
-                                    ? 'bg-success-green/10'
-                                    : transaction.type === 'deposit'
-                                    ? 'bg-cyan-500/10'
-                                    : 'bg-primary/10'
-                                }`}
-                              >
-                                {transaction.amount > 0 ? (
-                                  <ArrowUpRight className="w-5 h-5 text-success-green" />
-                                ) : transaction.type === 'deposit' ? (
-                                  <Shield className="w-5 h-5 text-cyan-500" />
-                                ) : (
-                                  <ArrowDownLeft className="w-5 h-5 text-primary" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium mb-1 truncate">{transaction.description}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span>{new Date(transaction.date).toLocaleDateString()}</span>
-                                  {transaction.freelancerName && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{transaction.freelancerName}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className={`font-medium ${transaction.amount > 0 ? 'text-success-green' : 'text-foreground'}`}>
-                                {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toLocaleString()}
-                              </p>
-                              <Badge variant="secondary" className="mt-1">
-                                {transaction.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <TransactionHistory transactions={transactions || []} isLoading={transactionsLoading} isClient />
               </TabsContent>
             </Tabs>
           </div>
 
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Payment Methods</CardTitle>
-                  <Button variant="ghost" size="sm">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {paymentMethods?.map((method) => (
-                  <div
-                    key={method.id}
-                    className={`p-4 rounded-lg border ${method.isDefault ? 'border-primary bg-primary/5' : 'border-border'}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${method.isDefault ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                        <Building className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium mb-1">{method.brand || method.type}</p>
-                        <p className="text-sm text-muted-foreground">****{method.last4}</p>
-                        {method.isDefault && (
-                          <Badge variant="secondary" className="mt-2">
-                            Primary
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
+            <PaymentMethods paymentMethods={paymentMethods || []} />
             <Card className="border-cyan-500/20 bg-cyan-500/5">
               <CardHeader>
                 <div className="flex items-center gap-2">

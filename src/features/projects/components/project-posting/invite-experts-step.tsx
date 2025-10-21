@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FreelancerCard } from './freelancer-card';
-import { MOCK_FREELANCERS } from './constants';
+import { useBrowseFreelancers } from '@/features/browse';
 import type { FreelancerOption } from '../../types';
 
 interface InviteExpertsStepProps {
@@ -24,15 +24,9 @@ export function InviteExpertsStep({
   onBack,
   onNext,
 }: InviteExpertsStepProps) {
-  const filteredFreelancers = MOCK_FREELANCERS.filter(
-    (freelancer) =>
-      searchQuery === '' ||
-      freelancer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      freelancer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      freelancer.skills.some((skill) =>
-        skill.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-  );
+  const { data: freelancers, isLoading, error } = useBrowseFreelancers({ search: searchQuery });
+
+  const filteredFreelancers = freelancers || [];
 
   return (
     <div className="space-y-6">
@@ -78,7 +72,15 @@ export function InviteExpertsStep({
 
           {/* Freelancer Results */}
           <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            {filteredFreelancers.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Loading...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8 text-destructive">
+                <p>Error loading freelancers.</p>
+              </div>
+            ) : filteredFreelancers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No AI experts found matching your search</p>
@@ -87,9 +89,19 @@ export function InviteExpertsStep({
               filteredFreelancers.map((freelancer) => (
                 <FreelancerCard
                   key={freelancer.id}
-                  freelancer={freelancer}
-                  isSelected={selectedFreelancers.includes(freelancer.id)}
-                  onToggle={() => onToggleFreelancer(freelancer.id)}
+                  freelancer={{
+                    id: freelancer.user_id,
+                    name: freelancer.user.full_name || '',
+                    title: freelancer.title,
+                    avatar: freelancer.user.avatar_url || '',
+                    rating: 4.9,
+                    reviewCount: 87,
+                    skills: freelancer.skills,
+                    hourlyRate: freelancer.hourly_rate,
+                    completedProjects: freelancer.portfolio?.length || 0,
+                  }}
+                  isSelected={selectedFreelancers.includes(freelancer.user_id)}
+                  onToggle={() => onToggleFreelancer(freelancer.user_id)}
                 />
               ))
             )}

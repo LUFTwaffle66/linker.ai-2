@@ -156,9 +156,9 @@ interface ReviewItemProps {
 
 function ReviewItem({ label, value, capitalize }: ReviewItemProps) {
   return (
-    <div>
+    <div className="w-fit">
       <h3 className="font-medium mb-2">{label}</h3>
-      <p className={`text-muted-foreground ${capitalize ? 'capitalize' : ''}`}>
+      <p className={`text-muted-foreground truncate overflow-hidden text-ellipsis ${capitalize ? 'capitalize' : ''}`}>
         {value || 'Not specified'}
       </p>
     </div>

@@ -17,14 +17,12 @@ import {
   TrendingUp,
   Briefcase,
   History,
-  ArrowDownLeft,
-  ArrowUpRight,
   AlertCircle,
   DollarSign,
-  Download,
   Plus,
-  Building,
   FileText,
+  ArrowDownLeft,
+  Download,
 } from 'lucide-react';
 import {
   useFreelancerEarnings,
@@ -35,6 +33,9 @@ import {
   useWithdrawFunds,
 } from '../hooks';
 import { toast } from 'sonner';
+import { BalanceCard } from './shared/balance-card';
+import { TransactionHistory } from './shared/transaction-history';
+import { PaymentMethods } from './shared/payment-methods';
 
 export function FreelancerPayments() {
   const [selectedMethod, setSelectedMethod] = useState('');
@@ -68,7 +69,7 @@ export function FreelancerPayments() {
     );
   };
 
-  if (earningsLoading) return <div className="p-8">Loading...</div>;
+  if (earningsLoading) return <div className="p-8 mx-auto max-w-7xl">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -81,49 +82,30 @@ export function FreelancerPayments() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">Available Balance</p>
-                <Wallet className="w-5 h-5 text-primary" />
-              </div>
-              <p className="text-3xl mb-1">${earnings?.availableBalance.toLocaleString()}</p>
-              <p className="text-xs text-success-green">Ready to withdraw</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">Pending</p>
-                <Clock className="w-5 h-5 text-amber-500" />
-              </div>
-              <p className="text-3xl mb-1">${earnings?.pendingClearance.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">In review</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">This Period</p>
-                <CheckCircle className="w-5 h-5 text-cyan-500" />
-              </div>
-              <p className="text-3xl mb-1">${earnings?.totalEarnings.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Current earnings</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-muted-foreground">Total Earned</p>
-                <TrendingUp className="w-5 h-5 text-success-green" />
-              </div>
-              <p className="text-3xl mb-1">${earnings?.lifetimeEarnings.toLocaleString()}</p>
-              <p className="text-xs text-success-green">All time</p>
-            </CardContent>
-          </Card>
+          <BalanceCard
+            title="Available Balance"
+            amount={earnings?.availableBalance || 0}
+            icon={<Wallet className="w-5 h-5 text-primary" />}
+            footerText="Ready to withdraw"
+          />
+          <BalanceCard
+            title="Pending"
+            amount={earnings?.pendingClearance || 0}
+            icon={<Clock className="w-5 h-5 text-amber-500" />}
+            footerText="In review"
+          />
+          <BalanceCard
+            title="This Period"
+            amount={earnings?.totalEarnings || 0}
+            icon={<CheckCircle className="w-5 h-5 text-cyan-500" />}
+            footerText="Current earnings"
+          />
+          <BalanceCard
+            title="Total Earned"
+            amount={earnings?.lifetimeEarnings || 0}
+            icon={<TrendingUp className="w-5 h-5 text-success-green" />}
+            footerText="All time"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -261,107 +243,13 @@ export function FreelancerPayments() {
               </TabsContent>
 
               <TabsContent value="history">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Transaction History</CardTitle>
-                        <CardDescription>All your payments and withdrawals</CardDescription>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Export
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {transactionsLoading ? (
-                        <p>Loading...</p>
-                      ) : (
-                        transactions?.map((transaction) => (
-                          <div
-                            key={transaction.id}
-                            className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-4 flex-1">
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  transaction.type === 'payment' ? 'bg-success-green/10' : 'bg-primary/10'
-                                }`}
-                              >
-                                {transaction.type === 'payment' ? (
-                                  <ArrowUpRight className="w-5 h-5 text-success-green" />
-                                ) : (
-                                  <ArrowDownLeft className="w-5 h-5 text-primary" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium mb-1 truncate">{transaction.description}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span>{new Date(transaction.date).toLocaleDateString()}</span>
-                                  {transaction.clientName && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{transaction.clientName}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className={`font-medium ${transaction.amount > 0 ? 'text-success-green' : 'text-foreground'}`}>
-                                {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toLocaleString()}
-                              </p>
-                              <Badge variant="secondary" className="mt-1">
-                                {transaction.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <TransactionHistory transactions={transactions || []} isLoading={transactionsLoading} isClient={false} />
               </TabsContent>
             </Tabs>
           </div>
 
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Payment Methods</CardTitle>
-                  <Button variant="ghost" size="sm">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {paymentMethods?.map((method) => (
-                  <div
-                    key={method.id}
-                    className={`p-4 rounded-lg border ${method.isDefault ? 'border-primary bg-primary/5' : 'border-border'}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${method.isDefault ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                        <Building className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium mb-1">{method.type}</p>
-                        <p className="text-sm text-muted-foreground">****{method.last4}</p>
-                        {method.isDefault && (
-                          <Badge variant="secondary" className="mt-2">
-                            Primary
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
+            <PaymentMethods paymentMethods={paymentMethods || []} />
             <Card>
               <CardHeader>
                 <CardTitle>Tax Documents</CardTitle>
