@@ -1,5 +1,7 @@
 import type { DefaultSession, NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { verifyCredentials } from "@/features/auth/lib/auth-utils";
+import type { UserRole } from "@/features/auth/types/auth";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -11,15 +13,17 @@ declare module "next-auth" {
 	interface Session extends DefaultSession {
 		user: {
 			id: string;
-			// ...other properties
-			// role: UserRole;
+			role: UserRole;
+			fullName: string;
+			avatarUrl?: string;
 		} & DefaultSession["user"];
 	}
 
-	// interface User {
-	//   // ...other properties
-	//   // role: UserRole;
-	// }
+	interface User {
+		role: UserRole;
+		fullName: string;
+		avatarUrl?: string;
+	}
 }
 
 /**
@@ -29,24 +33,69 @@ declare module "next-auth" {
  */
 export const authConfig = {
 	providers: [
-		DiscordProvider,
-		/**
-		 * ...add more providers here.
-		 *
-		 * Most other providers require a bit more work than the Discord provider. For example, the
-		 * GitHub provider requires you to add the `refresh_token_expires_in` field to the Account
-		 * model. Refer to the NextAuth.js docs for the provider you want to use. Example:
-		 *
-		 * @see https://next-auth.js.org/providers/github
-		 */
-	],
-	callbacks: {
-		session: ({ session, token }) => ({
-			...session,
-			user: {
-				...session.user,
-				id: token.sub,
+		CredentialsProvider({
+			name: "Credentials",
+			credentials: {
+				email: { label: "Email", type: "email" },
+				password: { label: "Password", type: "password" },
+			},
+			async authorize(credentials) {
+				if (!credentials?.email || !credentials?.password) {
+					return null;
+				}
+
+				const user = await verifyCredentials(
+					credentials.email as string,
+					credentials.password as string
+				);
+
+				if (!user) {
+					return null;
+				}
+
+				return {
+					id: user.id,
+					email: user.email,
+					role: user.role,
+					fullName: user.full_name,
+					avatarUrl: user.avatar_url,
+					name: user.full_name,
+					image: user.avatar_url,
+				};
 			},
 		}),
+	],
+	callbacks: {
+		async jwt({ token, user }) {
+			if (user) {
+				token.id = user.id;
+				token.role = user.role;
+				token.email = user.email;
+				token.fullName = user.fullName;
+				token.avatarUrl = user.avatarUrl;
+			}
+			return token;
+		},
+		async session({ session, token }) {
+			if (token) {
+				session.user = {
+					...session.user,
+					id: token.id as string,
+					role: token.role as UserRole,
+					email: token.email as string,
+					fullName: token.fullName as string,
+					avatarUrl: token.avatarUrl as string | undefined,
+				};
+			}
+			return session;
+		},
+	},
+	pages: {
+		signIn: "/login",
+		error: "/login",
+	},
+	session: {
+		strategy: "jwt",
+		maxAge: 30 * 24 * 60 * 60, // 30 days
 	},
 } satisfies NextAuthConfig;

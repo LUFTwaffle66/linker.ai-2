@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, Link } from '@/i18n/routing';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { signIn } from 'next-auth/react';
 import { Bot, Briefcase, CheckCircle, User, Mail, Lock, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useSignup } from '../api/signup';
+import { useSignup, type SignupDTO } from '../api/signup';
 import { type UserType } from '../types';
 import { signupSchema, clientSignupSchema, type SignupFormData, type ClientSignupFormData } from '../lib/validations';
 import { toast } from 'sonner';
@@ -48,10 +49,23 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
   });
 
   const signupMutation = useSignup({
-    onSuccess: (data) => {
+    onSuccess: async (data: any, variables: SignupDTO) => {
       toast.success('Account created successfully!');
       console.log('Signup successful:', data);
       onSignup?.(activeTab);
+
+      // Automatically sign in the user after successful signup
+      const signInResult = await signIn('credentials', {
+        email: variables.email,
+        password: variables.password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        toast.error('Account created but login failed. Please login manually.');
+        router.push(paths.auth.login.getHref());
+        return;
+      }
 
       // Redirect to appropriate onboarding screen
       if (activeTab === 'client') {
@@ -71,8 +85,8 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
       fullName: data.fullName,
       email: data.email,
       password: data.password,
+      role: activeTab,
       companyName: activeTab === 'client' ? (data as ClientSignupFormData).companyName : undefined,
-      userType: activeTab,
     });
   };
 

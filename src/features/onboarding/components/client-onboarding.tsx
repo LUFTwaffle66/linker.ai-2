@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import {
   Sparkles, User, Building2, Target, DollarSign, Upload, Globe, Users
 } from 'lucide-react';
@@ -28,6 +29,7 @@ import {
   clientOnboardingSchema,
   type ClientOnboardingData,
 } from '../lib/validations';
+import { saveClientOnboarding } from '../api/onboarding';
 
 interface ClientOnboardingProps {
   onComplete?: () => void;
@@ -90,6 +92,21 @@ export function ClientOnboarding({ onComplete, onSkip }: ClientOnboardingProps) 
     },
   });
 
+  const mutation = useMutation({
+    mutationFn: saveClientOnboarding,
+    onSuccess: () => {
+      toast.success('Profile created successfully! Welcome to LinkerAI');
+      if (onComplete) {
+        onComplete();
+      } else {
+        router.push(paths.app.dashboard.getHref());
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to save profile. Please try again.');
+    },
+  });
+
   const projectGoals = form.watch('projectGoals') || [];
 
   const toggleProjectGoal = (goal: string) => {
@@ -139,13 +156,7 @@ export function ClientOnboarding({ onComplete, onSkip }: ClientOnboardingProps) 
   };
 
   const handleComplete = form.handleSubmit((data) => {
-    console.log('Onboarding data:', data);
-    toast.success('Profile created successfully! Welcome to LinkerAI');
-    if (onComplete) {
-      onComplete();
-    } else {
-      router.push(paths.app.dashboard.getHref());
-    }
+    mutation.mutate(data);
   });
 
   const handleSkip = () => {

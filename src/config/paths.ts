@@ -61,28 +61,28 @@ export const paths = {
 
   app: {
     root: {
-      getHref: () => '/app',
+      getHref: () => '/',
     },
     dashboard: {
-      getHref: () => '/app',
+      getHref: () => '/',
     },
     discussions: {
-      getHref: () => '/app/discussions',
+      getHref: () => '/discussions',
     },
     discussion: {
-      getHref: (id: string) => `/app/discussions/${id}`,
+      getHref: (id: string) => `/discussions/${id}`,
     },
     users: {
-      getHref: () => '/app/users',
+      getHref: () => '/users',
     },
     profile: {
-      getHref: () => '/app/profile',
+      getHref: () => '/profile',
     },
     messages: {
       getHref: () => '/messages',
     },
     payments: {
-      getHref: () => '/app/payments',
+      getHref: () => '/payments',
     },
     settings: {
       getHref: () => '/settings',

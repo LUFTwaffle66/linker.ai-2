@@ -29,7 +29,6 @@ export type {
   Message,
   Conversation,
   ConversationSettings,
-  FileAttachment,
   SendMessageFormData,
   CreateConversationFormData,
 } from './types';

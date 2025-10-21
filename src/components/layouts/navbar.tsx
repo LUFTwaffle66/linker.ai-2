@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, usePathname, Link } from '@/i18n/routing';
 import { useLocale } from 'next-intl';
+import { useSession, signOut } from 'next-auth/react';
 import {
   Search,
   Globe,
@@ -42,19 +43,40 @@ import {
 } from '@/components/ui/sheet';
 import { paths } from '@/config/paths';
 
-interface NavigationProps {
-  isLoggedIn?: boolean;
-  userType?: 'contractor' | 'client';
-}
-
-export function Navigation({ isLoggedIn = false, userType = 'contractor' }: NavigationProps) {
+export function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
   const locale = useLocale();
+  const { data: session, status } = useSession();
   const [searchQuery, setSearchQuery] = useState('');
   const [onlineForMessages, setOnlineForMessages] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isLoggedIn = status === 'authenticated' && !!session?.user;
+  const user = session?.user;
+
+  // Helper function to get user initials
+  const getUserInitials = () => {
+    if (!user?.fullName) return 'U';
+    const names = user.fullName.split(' ');
+    if (names.length >= 2) {
+      return `${names[0]?.[0] || ''}${names[1]?.[0] || ''}`.toUpperCase();
+    }
+    return user.fullName.substring(0, 2).toUpperCase();
+  };
+
+  // Helper function to get user type label
+  const getUserTypeLabel = () => {
+    if (user?.role === 'freelancer') return 'AI Expert';
+    if (user?.role === 'client') return 'Client';
+    if (user?.role === 'admin') return 'Admin';
+    return 'User';
+  };
+
+  const handleLogout = async () => {
+    await signOut({ redirect: true, callbackUrl: paths.auth.login.getHref() });
+  };
 
   // Mock notifications data
   const notifications = [
@@ -221,9 +243,9 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center space-x-2 rounded-full hover:opacity-80 transition-opacity">
                       <Avatar className="w-9 h-9 border-2 border-primary/20">
-                        <AvatarImage src="" />
+                        <AvatarImage src={user?.avatarUrl || ''} />
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {userType === 'contractor' ? 'DT' : 'JD'}
+                          {getUserInitials()}
                         </AvatarFallback>
                       </Avatar>
                     </button>
@@ -232,16 +254,16 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
                     {/* User Info Header */}
                     <div className="flex items-center gap-3 p-3">
                       <Avatar className="w-12 h-12 border-2 border-primary/20">
-                        <AvatarImage src="" />
+                        <AvatarImage src={user?.avatarUrl || ''} />
                         <AvatarFallback className="bg-primary text-primary-foreground">
-                          {userType === 'contractor' ? 'DT' : 'JD'}
+                          {getUserInitials()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate">
-                          {userType === 'contractor' ? 'Devansh Tiwari' : 'John Doe'}
+                          {user?.fullName || 'User'}
                         </p>
-                        <p className="text-sm text-muted-foreground">{userType === 'contractor' ? 'AI Expert' : 'Client'}</p>
+                        <p className="text-sm text-muted-foreground">{getUserTypeLabel()}</p>
                       </div>
                     </div>
 
@@ -258,13 +280,15 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
                     {/* Menu Items */}
                     <DropdownMenuItem
                       className="cursor-pointer"
-                      onClick={() =>
-                        router.push(
-                          userType === 'contractor'
-                            ? paths.app.freelancerProfile.getHref()
-                            : paths.app.clientProfile.getHref()
-                        )
-                      }
+                      onClick={() => {
+                        if (user?.id) {
+                          router.push(
+                            user.role === 'freelancer'
+                              ? paths.app.freelancerProfile.getHref(user.id)
+                              : paths.app.clientProfile.getHref(user.id)
+                          );
+                        }
+                      }}
                     >
                       <User className="w-4 h-4 mr-3" />
                       Your profile
@@ -293,7 +317,10 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
 
                     <DropdownMenuSeparator />
 
-                    <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
+                    <DropdownMenuItem
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      onClick={handleLogout}
+                    >
                       <LogOut className="w-4 h-4 mr-3" />
                       Log out
                     </DropdownMenuItem>
@@ -360,16 +387,16 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
                       {/* User Profile Section */}
                       <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
                         <Avatar className="w-12 h-12 border-2 border-primary/20">
-                          <AvatarImage src="" />
+                          <AvatarImage src={user?.avatarUrl || ''} />
                           <AvatarFallback className="bg-primary text-primary-foreground">
-                            {userType === 'contractor' ? 'DT' : 'JD'}
+                            {getUserInitials()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold truncate">
-                            {userType === 'contractor' ? 'Devansh Tiwari' : 'John Doe'}
+                            {user?.fullName || 'User'}
                           </p>
-                          <p className="text-sm text-muted-foreground">{userType === 'contractor' ? 'AI Expert' : 'Client'}</p>
+                          <p className="text-sm text-muted-foreground">{getUserTypeLabel()}</p>
                         </div>
                       </div>
 
@@ -402,11 +429,13 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
                           variant="ghost"
                           className="w-full justify-start h-11 px-4"
                           onClick={() => {
-                            router.push(
-                              userType === 'contractor'
-                                ? paths.app.freelancerProfile.getHref()
-                                : paths.app.clientProfile.getHref()
-                            );
+                            if (user?.id) {
+                              router.push(
+                                user.role === 'freelancer'
+                                  ? paths.app.freelancerProfile.getHref(user.id)
+                                  : paths.app.clientProfile.getHref(user.id)
+                              );
+                            }
                             setMobileMenuOpen(false);
                           }}
                         >
@@ -484,6 +513,7 @@ export function Navigation({ isLoggedIn = false, userType = 'contractor' }: Navi
                         <Button
                           variant="ghost"
                           className="w-full justify-start h-11 px-4 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={handleLogout}
                         >
                           <LogOut className="w-5 h-5 mr-3" />
                           Log Out

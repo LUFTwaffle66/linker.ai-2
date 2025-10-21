@@ -53,7 +53,18 @@ export const freelancerSkillsSchema = z.object({
   skills: z.array(z.string()).min(3, 'Please select at least 3 skills').max(15, 'Maximum 15 skills'),
 });
 
+// Portfolio item schema
+export const portfolioItemSchema = z.object({
+  title: z.string().min(2, 'Title must be at least 2 characters'),
+  description: z.string().min(10, 'Description must be at least 10 characters'),
+  tags: z.array(z.string()).min(1, 'Please select at least one tag'),
+  imageUrl: z.string().optional(),
+  url: z.string().optional(),
+});
+
 export const freelancerPortfolioSchema = z.object({
+  portfolio: z.array(portfolioItemSchema).optional().default([]),
+  // Keep old fields for backward compatibility during migration
   portfolioTitle: z.string().optional(),
   portfolioDescription: z.string().optional(),
   portfolioTags: z.array(z.string()).optional(),

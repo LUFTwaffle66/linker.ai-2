@@ -1,28 +1,28 @@
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
-import { type SignupFormData, type SignupResponse } from '../types';
+import type { UserRole } from '../types/auth';
 
-export type SignupDTO = Omit<SignupFormData, 'confirmPassword'>;
+export interface SignupDTO {
+  fullName: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  companyName?: string;
+}
 
-export const signup = (data: SignupDTO): Promise<SignupResponse> => {
+export const signup = async (data: SignupDTO) => {
   return api.post('/auth/signup', data);
 };
 
 type UseSignupOptions = {
-  onSuccess?: (data: SignupResponse) => void;
+  onSuccess?: (data: any, variables: SignupDTO) => void | Promise<void>;
   onError?: (error: Error) => void;
 };
 
 export const useSignup = ({ onSuccess, onError }: UseSignupOptions = {}) => {
   return useMutation({
     mutationFn: signup,
-    onSuccess: (data) => {
-      // Store token in localStorage or cookie
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', data.token);
-      }
-      onSuccess?.(data);
-    },
+    onSuccess,
     onError: (error: Error) => {
       console.error('Signup error:', error);
       onError?.(error);

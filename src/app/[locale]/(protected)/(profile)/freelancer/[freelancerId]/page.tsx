@@ -1,13 +1,18 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { FreelancerProfile, useFreelancerProfile } from '@/features/profiles';
 
 export default function FreelancerProfilePage() {
   const params = useParams();
   const freelancerId = params.freelancerId as string;
+  const { data: session } = useSession();
 
   const { data, isLoading, error } = useFreelancerProfile(freelancerId);
+
+  // Check if the logged-in user is viewing their own profile
+  const isOwnProfile = session?.user?.id === freelancerId;
 
   if (isLoading) {
     return (
@@ -37,5 +42,5 @@ export default function FreelancerProfilePage() {
     return null;
   }
 
-  return <FreelancerProfile />;
+  return <FreelancerProfile profile={data} freelancerId={freelancerId} isOwnProfile={isOwnProfile} />;
 }

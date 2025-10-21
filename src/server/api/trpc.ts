@@ -128,3 +128,48 @@ export const protectedProcedure = t.procedure
 			},
 		});
 	});
+
+/**
+ * Role-based procedures
+ * These procedures check if the user has a specific role before allowing access
+ */
+const requireRole = (allowedRoles: string[]) =>
+	t.middleware(({ ctx, next }) => {
+		if (!ctx.session?.user) {
+			throw new TRPCError({ code: "UNAUTHORIZED" });
+		}
+
+		if (!allowedRoles.includes(ctx.session.user.role)) {
+			throw new TRPCError({
+				code: "FORBIDDEN",
+				message: `Required role(s): ${allowedRoles.join(", ")}`,
+			});
+		}
+
+		return next({
+			ctx: {
+				session: { ...ctx.session, user: ctx.session.user },
+			},
+		});
+	});
+
+/**
+ * Admin-only procedure
+ */
+export const adminProcedure = t.procedure
+	.use(timingMiddleware)
+	.use(requireRole(["admin"]));
+
+/**
+ * Client-only procedure (admins can also access)
+ */
+export const clientProcedure = t.procedure
+	.use(timingMiddleware)
+	.use(requireRole(["client", "admin"]));
+
+/**
+ * Freelancer-only procedure (admins can also access)
+ */
+export const freelancerProcedure = t.procedure
+	.use(timingMiddleware)
+	.use(requireRole(["freelancer", "admin"]));

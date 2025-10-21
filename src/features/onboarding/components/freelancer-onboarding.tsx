@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import {
-  Sparkles, User, Award, Briefcase, DollarSign, Upload, MapPin, Clock, CheckCircle2
+  Sparkles, User, Award, Briefcase, DollarSign, Upload, MapPin, Clock, CheckCircle2, Plus, X, ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ import {
   freelancerOnboardingSchema,
   type FreelancerOnboardingData,
 } from '../lib/validations';
+import { saveFreelancerOnboarding } from '../api/onboarding';
 
 interface FreelancerOnboardingProps {
   onComplete?: () => void;
@@ -67,6 +69,7 @@ export function FreelancerOnboarding({ onComplete, onSkip }: FreelancerOnboardin
       bio: '',
       experience: '',
       skills: [],
+      portfolio: [],
       portfolioTitle: '',
       portfolioDescription: '',
       portfolioTags: [],
@@ -74,8 +77,30 @@ export function FreelancerOnboarding({ onComplete, onSkip }: FreelancerOnboardin
     },
   });
 
+  const mutation = useMutation({
+    mutationFn: saveFreelancerOnboarding,
+    onSuccess: () => {
+      toast.success('Profile created successfully! Welcome to LinkerAI');
+      if (onComplete) {
+        onComplete();
+      } else {
+        router.push(paths.app.dashboard.getHref());
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to save profile. Please try again.');
+    },
+  });
+
   const skills = form.watch('skills') || [];
-  const portfolioTags = form.watch('portfolioTags') || [];
+  const portfolio = form.watch('portfolio') || [];
+  const [currentPortfolioItem, setCurrentPortfolioItem] = useState({
+    title: '',
+    description: '',
+    tags: [] as string[],
+    imageUrl: '',
+    url: '',
+  });
 
   const toggleSkill = (skill: string) => {
     const currentSkills = form.getValues('skills') || [];
@@ -91,14 +116,52 @@ export function FreelancerOnboarding({ onComplete, onSkip }: FreelancerOnboardin
   };
 
   const togglePortfolioTag = (tag: string) => {
-    const currentTags = form.getValues('portfolioTags') || [];
+    const currentTags = currentPortfolioItem.tags;
     if (currentTags.includes(tag)) {
-      form.setValue('portfolioTags', currentTags.filter(t => t !== tag));
+      setCurrentPortfolioItem({
+        ...currentPortfolioItem,
+        tags: currentTags.filter(t => t !== tag),
+      });
     } else {
       if (currentTags.length < 6) {
-        form.setValue('portfolioTags', [...currentTags, tag]);
+        setCurrentPortfolioItem({
+          ...currentPortfolioItem,
+          tags: [...currentTags, tag],
+        });
       }
     }
+  };
+
+  const addPortfolioItem = () => {
+    if (!currentPortfolioItem.title || !currentPortfolioItem.description) {
+      toast.error('Please provide at least a title and description');
+      return;
+    }
+
+    if (currentPortfolioItem.tags.length === 0) {
+      toast.error('Please select at least one technology tag');
+      return;
+    }
+
+    const currentPortfolio = form.getValues('portfolio') || [];
+    form.setValue('portfolio', [...currentPortfolio, currentPortfolioItem]);
+
+    // Reset current item
+    setCurrentPortfolioItem({
+      title: '',
+      description: '',
+      tags: [],
+      imageUrl: '',
+      url: '',
+    });
+
+    toast.success('Portfolio item added!');
+  };
+
+  const removePortfolioItem = (index: number) => {
+    const currentPortfolio = form.getValues('portfolio') || [];
+    form.setValue('portfolio', currentPortfolio.filter((_, i) => i !== index));
+    toast.success('Portfolio item removed');
   };
 
   const handleNext = async () => {
@@ -139,13 +202,7 @@ export function FreelancerOnboarding({ onComplete, onSkip }: FreelancerOnboardin
   };
 
   const handleComplete = form.handleSubmit((data) => {
-    console.log('Onboarding data:', data);
-    toast.success('Profile created successfully! Welcome to LinkerAI');
-    if (onComplete) {
-      onComplete();
-    } else {
-      router.push(paths.app.dashboard.getHref());
-    }
+    mutation.mutate(data);
   });
 
   const handleSkip = () => {
@@ -386,80 +443,133 @@ export function FreelancerOnboarding({ onComplete, onSkip }: FreelancerOnboardin
             <div>
               <h2 className="mb-2">Showcase Your Work</h2>
               <p className="text-muted-foreground">
-                Add a portfolio item to demonstrate your expertise (optional)
+                Add portfolio items to demonstrate your expertise (optional)
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h4 className="mb-2">Upload Project Image</h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  PNG, JPG up to 10MB
-                </p>
-                <Button variant="outline">Choose File</Button>
+            {/* Display added portfolio items */}
+            {portfolio.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Added Portfolio Items ({portfolio.length})</h3>
+                {portfolio.map((item, index) => (
+                  <div key={index} className="border rounded-lg p-4 bg-card">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-medium mb-1">{item.title}</h4>
+                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                          {item.description}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {item.tags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        {item.url && (
+                          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                            <ExternalLink className="w-3 h-3" />
+                            <span className="truncate max-w-xs">{item.url}</span>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removePortfolioItem(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new portfolio item form */}
+            <div className="border-2 border-dashed rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">
+                  {portfolio.length === 0 ? 'Add Your First Portfolio Item' : 'Add Another Portfolio Item'}
+                </h3>
               </div>
 
-              <FormField
-                control={form.control}
-                name="portfolioTitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., AI Chatbot for Customer Support" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Project Title *</label>
+                  <Input
+                    placeholder="e.g., AI Chatbot for Customer Support"
+                    value={currentPortfolioItem.title}
+                    onChange={(e) => setCurrentPortfolioItem({
+                      ...currentPortfolioItem,
+                      title: e.target.value,
+                    })}
+                  />
+                </div>
 
-              <FormField
-                control={form.control}
-                name="portfolioDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Describe the project, technologies used, and results achieved..."
-                        rows={4}
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Project Description *</label>
+                  <Textarea
+                    placeholder="Describe the project, technologies used, and results achieved..."
+                    rows={3}
+                    className="resize-none"
+                    value={currentPortfolioItem.description}
+                    onChange={(e) => setCurrentPortfolioItem({
+                      ...currentPortfolioItem,
+                      description: e.target.value,
+                    })}
+                  />
+                </div>
 
-              <FormField
-                control={form.control}
-                name="portfolioTags"
-                render={() => (
-                  <FormItem>
-                    <FormLabel>Technologies Used</FormLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {['Python', 'TensorFlow', 'OpenAI API', 'React', 'Docker', 'AWS'].map(tag => (
-                        <Badge
-                          key={tag}
-                          variant={portfolioTags.includes(tag) ? 'default' : 'outline'}
-                          className="cursor-pointer"
-                          onClick={() => togglePortfolioTag(tag)}
-                        >
-                          {portfolioTags.includes(tag) && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </FormItem>
-                )}
-              />
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Project URL (optional)</label>
+                  <Input
+                    placeholder="https://your-project-demo.com"
+                    value={currentPortfolioItem.url}
+                    onChange={(e) => setCurrentPortfolioItem({
+                      ...currentPortfolioItem,
+                      url: e.target.value,
+                    })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Technologies Used *</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Python', 'TensorFlow', 'OpenAI API', 'React', 'Docker', 'AWS', 'Node.js', 'PyTorch', 'LangChain'].map(tag => (
+                      <Badge
+                        key={tag}
+                        variant={currentPortfolioItem.tags.includes(tag) ? 'default' : 'outline'}
+                        className="cursor-pointer"
+                        onClick={() => togglePortfolioTag(tag)}
+                      >
+                        {currentPortfolioItem.tags.includes(tag) && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={addPortfolioItem}
+                  className="w-full"
+                  variant={portfolio.length > 0 ? 'outline' : 'default'}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Portfolio Item
+                </Button>
+              </div>
             </div>
 
             <div className="bg-muted/50 p-4 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                You can skip this step and add portfolio items later from your profile settings.
+                {portfolio.length === 0
+                  ? 'You can skip this step and add portfolio items later from your profile settings.'
+                  : 'You can add more portfolio items later from your profile settings.'
+                }
               </p>
             </div>
           </div>

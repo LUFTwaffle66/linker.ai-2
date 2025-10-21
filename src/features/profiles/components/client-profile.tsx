@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Star,
@@ -15,47 +16,22 @@ import {
   Plus,
   Calendar,
   DollarSign,
+  Share2
 } from 'lucide-react';
 import { paths } from '@/config/paths';
+import { ShareProfileDialog } from '@/components/shared/share-profile-dialog';
+import type { ClientProfileData } from '../types';
 
 interface ClientProfileProps {
+  profile: ClientProfileData;
+  clientId: string;
+  isOwnProfile?: boolean;
   onNavigateToMessages?: () => void;
 }
 
-export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
+export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavigateToMessages }: ClientProfileProps) {
   const router = useRouter();
-
-  const pastProjects = [
-    {
-      id: 1,
-      title: 'Customer Support AI Chatbot',
-      status: 'Completed',
-      budget: '$18,000',
-      contractor: 'Alex Chen - AI Automation',
-      rating: 5,
-      completedDate: 'Dec 2024',
-      description: 'GPT-4 powered chatbot reducing support tickets by 75% and improving response time to under 30 seconds'
-    },
-    {
-      id: 2,
-      title: 'Automated Data Processing Pipeline',
-      status: 'In Progress',
-      budget: '$32,000',
-      contractor: 'DataFlow Solutions',
-      completedDate: 'Expected Feb 2025',
-      description: 'End-to-end automation of sales data processing, analysis, and reporting using Python and ML models'
-    },
-    {
-      id: 3,
-      title: 'Invoice Processing RPA System',
-      status: 'Completed',
-      budget: '$12,500',
-      contractor: 'AutomateNow Inc',
-      rating: 4,
-      completedDate: 'Nov 2024',
-      description: 'Automated invoice extraction and processing system handling 500+ invoices daily with 98% accuracy'
-    }
-  ];
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const handlePostProject = () => {
     router.push(paths.app.postProject.getHref());
@@ -67,6 +43,18 @@ export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
     } else {
       router.push(paths.app.messages.getHref());
     }
+  };
+
+  const handleShare = () => {
+    setShareDialogOpen(true);
+  };
+
+  const getInitials = (name: string) => {
+    const names = name.split(' ');
+    if (names.length >= 2) {
+      return `${names[0]?.[0] || ''}${names[1]?.[0] || ''}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -81,45 +69,62 @@ export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="flex flex-col items-center md:items-start">
                     <Avatar className="w-24 h-24 mb-4">
-                      <AvatarFallback className="text-xl">TC</AvatarFallback>
+                      <AvatarImage src={profile.avatar} />
+                      <AvatarFallback className="text-xl">{getInitials(profile.name)}</AvatarFallback>
                     </Avatar>
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-green-600">Verified Client</span>
-                    </div>
+                    {profile.verified && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <span className="text-sm text-green-600">Verified Client</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium">4.9</span>
-                      <span className="text-muted-foreground">(34 reviews)</span>
+                      {profile.reviewCount > 0 ? (
+                        <>
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">{profile.rating.toFixed(1)}</span>
+                          <span className="text-muted-foreground">({profile.reviewCount} reviews)</span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">(0 reviews)</span>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex-1">
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                       <div>
-                        <h1 className="text-2xl mb-2">Michael Thompson</h1>
-                        <p className="text-lg text-muted-foreground mb-3">Product Manager at TechCorp Solutions</p>
+                        <h1 className="text-2xl mb-2">{profile.name}</h1>
+                        <p className="text-lg text-muted-foreground mb-3">{profile.title}</p>
 
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>San Francisco, CA</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Building className="w-4 h-4" />
-                            <span>TechCorp Solutions</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>Member since 2021</span>
-                          </div>
+                          {profile.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{profile.location}</span>
+                            </div>
+                          )}
+                          {profile.company && (
+                            <div className="flex items-center gap-1">
+                              <Building className="w-4 h-4" />
+                              <span>{profile.company}</span>
+                            </div>
+                          )}
+                          {profile.memberSince && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>Member since {profile.memberSince}</span>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {['SaaS', 'Enterprise Software', 'AI Integration', 'Cloud Services'].map((industry) => (
-                            <Badge key={industry} variant="secondary">{industry}</Badge>
-                          ))}
-                        </div>
+                        {profile.industries.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {profile.industries.map((industry) => (
+                              <Badge key={industry} variant="secondary">{industry}</Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-col gap-2 min-w-[200px]">
@@ -130,6 +135,10 @@ export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
                         <Button variant="outline" className="w-full" onClick={handlePostProject}>
                           <Plus className="w-4 h-4 mr-2" />
                           Post New Project
+                        </Button>
+                        <Button variant="outline" className="w-full" onClick={handleShare}>
+                          <Share2 className="w-4 h-4 mr-2" />
+                          Share Profile
                         </Button>
                       </div>
                     </div>
@@ -146,102 +155,88 @@ export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
               </TabsList>
 
               <TabsContent value="about" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>About Me</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground leading-relaxed">
-                      I'm a Product Manager at TechCorp Solutions, where I lead initiatives to integrate AI and automation
-                      into our enterprise SaaS platform. With over 8 years of experience in product development and digital
-                      transformation, I'm passionate about leveraging cutting-edge AI technology to solve real business problems.
-                    </p>
-                    <p className="text-muted-foreground leading-relaxed mt-4">
-                      I regularly work with AI automation experts to enhance our platform capabilities and streamline our
-                      internal operations. I value technical excellence, innovative solutions, and professionals who can
-                      deliver measurable ROI through intelligent automation.
-                    </p>
-                  </CardContent>
-                </Card>
+                {profile.bio && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>About</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {profile.bio}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>What We Look For</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium">Proven AI/ML Expertise</p>
-                          <p className="text-sm text-muted-foreground">Demonstrated experience with GPT-4, machine learning, or automation platforms</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium">Enterprise Experience</p>
-                          <p className="text-sm text-muted-foreground">Track record working with large-scale systems and enterprise clients</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium">Clear Documentation</p>
-                          <p className="text-sm text-muted-foreground">Ability to provide comprehensive documentation and training materials</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
-                        <div>
-                          <p className="font-medium">ROI-Focused Approach</p>
-                          <p className="text-sm text-muted-foreground">Solutions that deliver measurable business value and efficiency gains</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="projects" className="space-y-6">
-                {pastProjects.map((project) => (
-                  <Card key={project.id}>
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-medium">{project.title}</h3>
-                            <Badge
-                              variant={project.status === 'Completed' ? 'default' : 'secondary'}
-                              className={project.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
-                            >
-                              {project.status}
-                            </Badge>
+                {profile.lookingFor.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>What We Look For</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {profile.lookingFor.map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-3">
+                            <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                            <div>
+                              <p className="font-medium">{item.title}</p>
+                              <p className="text-sm text-muted-foreground">{item.description}</p>
+                            </div>
                           </div>
-                          <p className="text-muted-foreground text-sm mb-3">{project.description}</p>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="w-4 h-4" />
-                              {project.budget}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {project.completedDate}
-                            </span>
-                            <span>Expert: {project.contractor}</span>
-                          </div>
-                        </div>
-                        {project.rating && (
-                          <div className="flex items-center gap-1">
-                            {[...Array(project.rating)].map((_, i) => (
-                              <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            ))}
-                          </div>
-                        )}
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                )}
+              </TabsContent>
+
+              <TabsContent value="projects" className="space-y-6">
+                {profile.pastProjects.length > 0 ? (
+                  profile.pastProjects.map((project) => (
+                    <Card key={project.id}>
+                      <CardContent className="p-6">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h3 className="font-medium">{project.title}</h3>
+                              <Badge
+                                variant={project.status === 'Completed' ? 'default' : 'secondary'}
+                                className={project.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
+                              >
+                                {project.status}
+                              </Badge>
+                            </div>
+                            <p className="text-muted-foreground text-sm mb-3">{project.description}</p>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="w-4 h-4" />
+                                {project.budget}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                {project.completedDate}
+                              </span>
+                              <span>Expert: {project.contractor}</span>
+                            </div>
+                          </div>
+                          {project.rating && (
+                            <div className="flex items-center gap-1">
+                              {[...Array(project.rating)].map((_, i) => (
+                                <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <p className="text-muted-foreground">No past projects yet</p>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -254,25 +249,27 @@ export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
                 <CardTitle>Client Stats</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm">Member Since</span>
-                  <span className="font-medium">2021</span>
-                </div>
+                {profile.memberSince && (
+                  <div className="flex justify-between">
+                    <span className="text-sm">Member Since</span>
+                    <span className="font-medium">{profile.memberSince}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm">Projects Posted</span>
-                  <span className="font-medium">34</span>
+                  <span className="font-medium">{profile.stats.projectsPosted}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Total Spent</span>
-                  <span className="font-medium">$520K+</span>
+                  <span className="font-medium">{profile.stats.totalSpent}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Repeat Experts</span>
-                  <span className="font-medium">76%</span>
+                  <span className="font-medium">{profile.stats.repeatExperts}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Avg. Project Size</span>
-                  <span className="font-medium">$18K</span>
+                  <span className="font-medium">{profile.stats.avgProjectSize}</span>
                 </div>
               </CardContent>
             </Card>
@@ -283,52 +280,67 @@ export function ClientProfile({ onNavigateToMessages }: ClientProfileProps) {
                 <CardTitle>Verification</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Payment Method Verified</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Business License Verified</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Tax ID Verified</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Phone Number Verified</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-sm">Email Verified</span>
-                </div>
+                {profile.verification.paymentMethodVerified && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">Payment Method Verified</span>
+                  </div>
+                )}
+                {profile.verification.businessLicenseVerified && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">Business License Verified</span>
+                  </div>
+                )}
+                {profile.verification.taxIdVerified && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">Tax ID Verified</span>
+                  </div>
+                )}
+                {profile.verification.phoneVerified && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">Phone Number Verified</span>
+                  </div>
+                )}
+                {profile.verification.emailVerified && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm">Email Verified</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-sm">
-                  <p className="font-medium">Posted new AI project</p>
-                  <p className="text-muted-foreground">2 days ago</p>
-                </div>
-                <div className="text-sm">
-                  <p className="font-medium">Left review for Alex Chen</p>
-                  <p className="text-muted-foreground">1 week ago</p>
-                </div>
-                <div className="text-sm">
-                  <p className="font-medium">Released milestone payment</p>
-                  <p className="text-muted-foreground">2 weeks ago</p>
-                </div>
-              </CardContent>
-            </Card>
+            {profile.recentActivity.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {profile.recentActivity.map((activity, idx) => (
+                    <div key={idx} className="text-sm">
+                      <p className="font-medium">{activity.action}</p>
+                      <p className="text-muted-foreground">{activity.date}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Share Dialog */}
+      <ShareProfileDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        profileUrl={`/en/client/${clientId}`}
+        profileName={profile.name}
+        profileTitle={profile.title}
+      />
     </div>
   );
 }

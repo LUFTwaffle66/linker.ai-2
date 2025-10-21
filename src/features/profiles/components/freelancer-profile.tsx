@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Star,
@@ -13,68 +14,48 @@ import {
   DollarSign,
   CheckCircle,
   MessageSquare,
-  Heart,
   Share2,
   Calendar as CalendarIcon,
   ExternalLink,
   Shield,
-  Award
+  Award,
+  Pencil,
+  Plus
 } from 'lucide-react';
 import { paths } from '@/config/paths';
+import { ShareProfileDialog } from '@/components/shared/share-profile-dialog';
+import { EditAboutDialog } from './edit-about-dialog';
+import { EditSkillsDialog } from './edit-skills-dialog';
+import { EditPortfolioDialog } from './edit-portfolio-dialog';
+import { EditExperienceDialog } from './edit-experience-dialog';
+import {
+  useUpdateFreelancerBio,
+  useUpdateFreelancerSkills,
+  useAddFreelancerPortfolio,
+  useAddFreelancerExperience,
+} from '../hooks/use-profile-mutations';
+import type { FreelancerProfileData } from '../types';
 
 interface FreelancerProfileProps {
+  profile: FreelancerProfileData;
+  freelancerId: string;
+  isOwnProfile?: boolean;
   onNavigateToMessages?: () => void;
 }
 
-export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfileProps) {
+export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false, onNavigateToMessages }: FreelancerProfileProps) {
   const router = useRouter();
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [editAboutOpen, setEditAboutOpen] = useState(false);
+  const [editSkillsOpen, setEditSkillsOpen] = useState(false);
+  const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
+  const [editExperienceOpen, setEditExperienceOpen] = useState(false);
 
-  const portfolioItems = [
-    {
-      id: 1,
-      title: 'Customer Support AI Chatbot',
-      description: 'GPT-4 powered chatbot handling 10K+ inquiries/month',
-      tags: ['OpenAI API', 'Python', 'NLP', 'React'],
-      url: '#'
-    },
-    {
-      id: 2,
-      title: 'Invoice Processing Automation',
-      description: 'RPA system reducing processing time by 85%',
-      tags: ['UiPath', 'OCR', 'Python', 'API Integration'],
-      url: '#'
-    },
-    {
-      id: 3,
-      title: 'Predictive Analytics Dashboard',
-      description: 'ML model for sales forecasting with 92% accuracy',
-      tags: ['TensorFlow', 'Python', 'Power BI', 'SQL'],
-      url: '#'
-    }
-  ];
-
-  const reviews = [
-    {
-      id: 1,
-      client: 'Sarah Chen',
-      avatar: 'SC',
-      rating: 5,
-      date: '2 weeks ago',
-      project: 'AI Chatbot Development',
-      comment: 'Exceptional work! Alex delivered a sophisticated chatbot that exceeded our expectations. Response times improved by 90% and customer satisfaction is through the roof.',
-      budget: '$12,000'
-    },
-    {
-      id: 2,
-      client: 'TechCorp Solutions',
-      avatar: 'TC',
-      rating: 5,
-      date: '1 month ago',
-      project: 'Workflow Automation',
-      comment: 'Professional and highly skilled. The automation saved our team 30+ hours per week. Alex provided excellent documentation and training.',
-      budget: '$18,500'
-    }
-  ];
+  // React Query mutation hooks
+  const updateBioMutation = useUpdateFreelancerBio();
+  const updateSkillsMutation = useUpdateFreelancerSkills();
+  const addPortfolioMutation = useAddFreelancerPortfolio();
+  const addExperienceMutation = useAddFreelancerExperience();
 
   const handleSendMessage = () => {
     if (onNavigateToMessages) {
@@ -82,6 +63,53 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
     } else {
       router.push(paths.app.messages.getHref());
     }
+  };
+
+  const handleShare = () => {
+    setShareDialogOpen(true);
+  };
+
+  // Edit handlers with React Query mutations
+  const handleSaveBio = async (bio: string) => {
+    await updateBioMutation.mutateAsync({ userId: freelancerId, bio });
+    setEditAboutOpen(false);
+  };
+
+  const handleSaveSkills = async (skills: string[]) => {
+    await updateSkillsMutation.mutateAsync({ userId: freelancerId, skills });
+    setEditSkillsOpen(false);
+  };
+
+  const handleSavePortfolio = async (item: {
+    title: string;
+    description: string;
+    tags: string[];
+    imageUrl?: string;
+    url?: string;
+  }) => {
+    await addPortfolioMutation.mutateAsync({
+      userId: freelancerId,
+      portfolioItem: item,
+    });
+    setEditPortfolioOpen(false);
+  };
+
+  const handleSaveExperience = async (experience: {
+    position: string;
+    company: string;
+    period: string;
+    description: string;
+  }) => {
+    await addExperienceMutation.mutateAsync({ userId: freelancerId, experience });
+    setEditExperienceOpen(false);
+  };
+
+  const getInitials = (name: string) => {
+    const names = name.split(' ');
+    if (names.length >= 2) {
+      return `${names[0]?.[0] || ''}${names[1]?.[0] || ''}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -96,42 +124,55 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="flex flex-col items-center md:items-start">
                     <Avatar className="w-24 h-24 mb-4">
-                      <AvatarFallback className="text-xl">AC</AvatarFallback>
+                      <AvatarImage src={profile.avatar} />
+                      <AvatarFallback className="text-xl">{getInitials(profile.name)}</AvatarFallback>
                     </Avatar>
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-green-600">Verified AI Expert</span>
-                    </div>
+                    {profile.verified && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <span className="text-sm text-green-600">Verified AI Expert</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium">4.9</span>
-                      <span className="text-muted-foreground">(89 reviews)</span>
+                      {profile.reviewCount > 0 ? (
+                        <>
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">{profile.rating.toFixed(1)}</span>
+                          <span className="text-muted-foreground">({profile.reviewCount} reviews)</span>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">(0 reviews)</span>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex-1">
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                       <div>
-                        <h1 className="text-2xl mb-2">Alex Chen</h1>
-                        <p className="text-lg text-muted-foreground mb-3">Senior AI Automation Engineer</p>
+                        <h1 className="text-2xl mb-2">{profile.name}</h1>
+                        <p className="text-lg text-muted-foreground mb-3">{profile.title}</p>
 
                         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>San Francisco, CA</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span>PST (UTC-8)</span>
-                          </div>
+                          {profile.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{profile.location}</span>
+                            </div>
+                          )}
+                          {profile.timezone && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{profile.timezone}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
-                            <span>$95-150/hour</span>
+                            <span>${profile.hourlyRate.min}-${profile.hourlyRate.max}/hour</span>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap gap-2 mb-4">
-                          {['AI Chatbots', 'Workflow Automation', 'Machine Learning', 'Python', 'OpenAI API'].map((skill) => (
+                          {profile.skills.slice(0, 5).map((skill) => (
                             <Badge key={skill} variant="secondary">{skill}</Badge>
                           ))}
                         </div>
@@ -140,16 +181,12 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
                       <div className="flex flex-col gap-2 min-w-[200px]">
                         <Button className="w-full" onClick={handleSendMessage}>
                           <MessageSquare className="w-4 h-4 mr-2" />
-                          Contact Alex
+                          Contact {profile.name.split(' ')[0]}
                         </Button>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="icon">
-                            <Heart className="w-4 h-4" />
-                          </Button>
-                          <Button variant="outline" size="icon">
-                            <Share2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Button variant="outline" className="w-full" onClick={handleShare}>
+                          <Share2 className="w-4 h-4 mr-2" />
+                          Share Profile
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -168,183 +205,267 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
 
               <TabsContent value="about" className="space-y-6">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                     <CardTitle>About Me</CardTitle>
+                    {isOwnProfile && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditAboutOpen(true)}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground leading-relaxed">
-                      I'm a senior AI automation engineer with 8+ years of experience building intelligent automation
-                      solutions for startups and Fortune 500 companies. I specialize in developing AI chatbots,
-                      implementing workflow automation, and creating custom machine learning models that drive real
-                      business value.
-                    </p>
-                    <p className="text-muted-foreground leading-relaxed mt-4">
-                      My expertise includes GPT-4 integration, RPA development, natural language processing, and
-                      predictive analytics. I've helped businesses save thousands of hours through intelligent
-                      automation while improving accuracy and customer satisfaction. Every solution I build is
-                      scalable, well-documented, and designed with long-term maintenance in mind.
-                    </p>
+                    {profile.bio ? (
+                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {profile.bio}
+                      </p>
+                    ) : isOwnProfile ? (
+                      <p className="text-muted-foreground italic">
+                        No bio added yet. Click Edit to add your bio.
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground italic">No bio available</p>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                     <CardTitle>Skills & Expertise</CardTitle>
+                    {isOwnProfile && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditSkillsOpen(true)}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
                   </CardHeader>
                   <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        'AI & Machine Learning',
-                        'GPT-4 & OpenAI API',
-                        'Python',
-                        'TensorFlow',
-                        'PyTorch',
-                        'Workflow Automation',
-                        'RPA (UiPath)',
-                        'NLP & Chatbots',
-                        'Data Analysis',
-                        'LangChain',
-                        'API Integration',
-                        'Cloud Platforms (AWS/GCP)',
-                        'Docker & Kubernetes',
-                        'SQL & NoSQL',
-                        'React & Node.js'
-                      ].map((skill) => (
-                        <Badge key={skill} variant="secondary" className="text-sm py-1 px-3">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
+                    {profile.skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {profile.skills.map((skill) => (
+                          <Badge key={skill} variant="secondary" className="text-sm py-1 px-3">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : isOwnProfile ? (
+                      <p className="text-muted-foreground italic">
+                        No skills added yet. Click Edit to add your skills.
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground italic">No skills listed</p>
+                    )}
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Certifications & Achievements</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <Shield className="w-5 h-5 text-green-500" />
-                        <div>
-                          <p className="font-medium">Google Cloud Professional ML Engineer</p>
-                          <p className="text-sm text-muted-foreground">Certification ID: GCP-ML-2024 (Current)</p>
-                        </div>
+                {profile.certifications.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Certifications & Achievements</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {profile.certifications.map((cert, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            {cert.status === 'Current' ? (
+                              <Shield className="w-5 h-5 text-green-500" />
+                            ) : (
+                              <Award className="w-5 h-5 text-gray-500" />
+                            )}
+                            <div>
+                              <p className="font-medium">{cert.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {cert.issuer} {cert.credentialId && `• ID: ${cert.credentialId}`} ({cert.status})
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Award className="w-5 h-5 text-blue-500" />
-                        <div>
-                          <p className="font-medium">AWS Certified Machine Learning Specialist</p>
-                          <p className="text-sm text-muted-foreground">Specialty Certification (Current)</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Shield className="w-5 h-5 text-purple-500" />
-                        <div>
-                          <p className="font-medium">UiPath Certified Advanced RPA Developer</p>
-                          <p className="text-sm text-muted-foreground">Professional Level (Current)</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
 
               <TabsContent value="portfolio" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {portfolioItems.map((item) => (
-                    <Card key={item.id} className="overflow-hidden">
-                      <div className="aspect-video bg-muted flex items-center justify-center">
-                        <p className="text-muted-foreground">Project Image</p>
+                {profile.portfolio.length > 0 ? (
+                  <>
+                    {isOwnProfile && (
+                      <div className="flex justify-end mb-4">
+                        <Button onClick={() => setEditPortfolioOpen(true)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Portfolio Item
+                        </Button>
                       </div>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="font-medium">{item.title}</h3>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <ExternalLink className="w-4 h-4" />
-                          </Button>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {profile.portfolio.map((item) => (
+                        <Card key={item.id} className="overflow-hidden">
+                          {item.imageUrl ? (
+                            <div className="aspect-video bg-muted flex items-center justify-center">
+                              <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-video bg-muted flex items-center justify-center">
+                              <p className="text-muted-foreground">Project Image</p>
+                            </div>
+                          )}
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <h3 className="font-medium">{item.title}</h3>
+                              <div className="flex gap-1">
+                                {isOwnProfile && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {item.url && (
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                    <a href={item.url} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {item.tags.map((tag) => (
+                                <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    {isOwnProfile && (
+                      <div className="flex justify-end">
+                        <Button onClick={() => setEditPortfolioOpen(true)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Portfolio Item
+                        </Button>
+                      </div>
+                    )}
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-muted-foreground">
+                          {isOwnProfile ? 'No portfolio items yet. Click "Add Portfolio Item" to showcase your work.' : 'No portfolio items yet'}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="reviews" className="space-y-6">
+                {profile.reviews.length > 0 ? (
+                  profile.reviews.map((review) => (
+                    <Card key={review.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          <Avatar>
+                            <AvatarImage src={review.avatar} />
+                            <AvatarFallback>{review.client.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="font-medium">{review.client}</p>
+                                <p className="text-sm text-muted-foreground">{review.project}</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 mb-1">
+                                  {[...Array(review.rating)].map((_, i) => (
+                                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                  ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{review.date}</p>
+                              </div>
+                            </div>
+                            <p className="text-muted-foreground mb-2">{review.comment}</p>
+                            <div className="flex items-center gap-4 text-sm">
+                              <Badge variant="outline">{review.budget}</Badge>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {item.tags.map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <p className="text-muted-foreground">No reviews yet</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="experience" className="space-y-6">
+                {profile.experience.length > 0 ? (
+                  <>
+                    {isOwnProfile && (
+                      <div className="flex justify-end mb-4">
+                        <Button onClick={() => setEditExperienceOpen(true)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Experience
+                        </Button>
+                      </div>
+                    )}
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle>Work Experience</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="border-l-2 border-muted pl-4 space-y-6">
+                          {profile.experience.map((exp, idx) => (
+                            <div key={idx} className="group relative">
+                              {isOwnProfile && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="absolute -right-2 -top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <h3 className="font-medium">{exp.position}</h3>
+                              <p className="text-muted-foreground">{exp.company} • {exp.period}</p>
+                              <p className="text-sm text-muted-foreground mt-2">{exp.description}</p>
+                            </div>
                           ))}
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="reviews" className="space-y-6">
-                {reviews.map((review) => (
-                  <Card key={review.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-4">
-                        <Avatar>
-                          <AvatarFallback>{review.avatar}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-2">
-                            <div>
-                              <p className="font-medium">{review.client}</p>
-                              <p className="text-sm text-muted-foreground">{review.project}</p>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center gap-1 mb-1">
-                                {[...Array(review.rating)].map((_, i) => (
-                                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                ))}
-                              </div>
-                              <p className="text-sm text-muted-foreground">{review.date}</p>
-                            </div>
-                          </div>
-                          <p className="text-muted-foreground mb-2">{review.comment}</p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <Badge variant="outline">{review.budget}</Badge>
-                          </div>
-                        </div>
+                  </>
+                ) : (
+                  <div className="space-y-4">
+                    {isOwnProfile && (
+                      <div className="flex justify-end">
+                        <Button onClick={() => setEditExperienceOpen(true)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Experience
+                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </TabsContent>
-
-              <TabsContent value="experience" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Work Experience</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="border-l-2 border-muted pl-4 space-y-6">
-                      <div>
-                        <h3 className="font-medium">Senior AI Automation Engineer</h3>
-                        <p className="text-muted-foreground">Freelance • 2020 - Present</p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Develop custom AI automation solutions for clients across healthcare, finance, and e-commerce.
-                          Specialize in GPT-4 chatbot development, RPA implementation, and machine learning model deployment.
-                          Delivered 80+ successful projects with 98% client satisfaction rate.
+                    )}
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-muted-foreground">
+                          {isOwnProfile ? 'No work experience added yet. Click "Add Experience" to showcase your professional background.' : 'No experience listed'}
                         </p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium">Machine Learning Engineer</h3>
-                        <p className="text-muted-foreground">TechCorp AI • 2018 - 2020</p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Built and deployed production ML models for customer behavior prediction and automation.
-                          Led team of 4 engineers in developing NLP-based document processing systems.
-                        </p>
-                      </div>
-                      <div>
-                        <h3 className="font-medium">Software Engineer</h3>
-                        <p className="text-muted-foreground">Innovation Labs • 2016 - 2018</p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Developed backend systems and APIs for data-driven applications.
-                          Gained expertise in Python, cloud infrastructure, and automated workflows.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -352,7 +473,7 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Availability */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5" />
@@ -363,15 +484,25 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Status</span>
-                    <Badge className="bg-green-100 text-green-800">Available</Badge>
+                    <Badge
+                      className={
+                        profile.availability.status === 'Available'
+                          ? 'bg-green-100 text-green-800'
+                          : profile.availability.status === 'Busy'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }
+                    >
+                      {profile.availability.status}
+                    </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Response Time</span>
-                    <span className="text-sm text-muted-foreground">Within 2 hours</span>
+                    <span className="text-sm text-muted-foreground">{profile.availability.responseTime}</span>
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Quick Stats */}
             <Card>
@@ -381,67 +512,82 @@ export function FreelancerProfile({ onNavigateToMessages }: FreelancerProfilePro
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-sm">Projects Completed</span>
-                  <span className="font-medium">89</span>
+                  <span className="font-medium">{profile.stats.projectsCompleted}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Total Earnings</span>
-                  <span className="font-medium">$850K+</span>
+                  <span className="font-medium">{profile.stats.totalEarnings}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Repeat Clients</span>
-                  <span className="font-medium">82%</span>
+                  <span className="font-medium">{profile.stats.repeatClients}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">On-Time Delivery</span>
-                  <span className="font-medium">98%</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Technologies */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Technologies</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm">Python</span>
-                  <span className="text-sm text-muted-foreground">Expert</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">TensorFlow/PyTorch</span>
-                  <span className="text-sm text-muted-foreground">Advanced</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">OpenAI API</span>
-                  <span className="text-sm text-muted-foreground">Expert</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">UiPath/Automation</span>
-                  <span className="text-sm text-muted-foreground">Advanced</span>
+                  <span className="font-medium">{profile.stats.onTimeDelivery}</span>
                 </div>
               </CardContent>
             </Card>
 
             {/* Languages */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Languages</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm">English</span>
-                  <span className="text-sm text-muted-foreground">Native</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Mandarin</span>
-                  <span className="text-sm text-muted-foreground">Fluent</span>
-                </div>
-              </CardContent>
-            </Card>
+            {profile.languages.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Languages</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {profile.languages.map((lang, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="text-sm">{lang.language}</span>
+                      <span className="text-sm text-muted-foreground">{lang.proficiency}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Share Dialog */}
+      <ShareProfileDialog
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        profileUrl={`/en/freelancer/${freelancerId}`}
+        profileName={profile.name}
+        profileTitle={profile.title}
+      />
+
+      {/* Edit Dialogs - Only available when viewing own profile */}
+      {isOwnProfile && (
+        <>
+          <EditAboutDialog
+            open={editAboutOpen}
+            onOpenChange={setEditAboutOpen}
+            currentBio={profile.bio}
+            onSave={handleSaveBio}
+          />
+
+          <EditSkillsDialog
+            open={editSkillsOpen}
+            onOpenChange={setEditSkillsOpen}
+            currentSkills={profile.skills}
+            onSave={handleSaveSkills}
+          />
+
+          <EditPortfolioDialog
+            open={editPortfolioOpen}
+            onOpenChange={setEditPortfolioOpen}
+            onSave={handleSavePortfolio}
+          />
+
+          <EditExperienceDialog
+            open={editExperienceOpen}
+            onOpenChange={setEditExperienceOpen}
+            onSave={handleSaveExperience}
+          />
+        </>
+      )}
     </div>
   );
 }

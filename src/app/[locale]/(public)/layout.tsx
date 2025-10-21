@@ -8,7 +8,7 @@ export default function PublicLayout({
 }) {
   return (
     <>
-      <Navigation isLoggedIn={false} />
+      <Navigation />
       <main>{children}</main>
       <Footer />
     </>

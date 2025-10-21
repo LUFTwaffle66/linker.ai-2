@@ -1,13 +1,18 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ClientProfile, useClientProfile } from '@/features/profiles';
 
 export default function ClientProfilePage() {
   const params = useParams();
   const clientId = params.clientId as string;
+  const { data: session } = useSession();
 
   const { data, isLoading, error } = useClientProfile(clientId);
+
+  // Check if the logged-in user is viewing their own profile
+  const isOwnProfile = session?.user?.id === clientId;
 
   if (isLoading) {
     return (
@@ -37,5 +42,5 @@ export default function ClientProfilePage() {
     return null;
   }
 
-  return <ClientProfile />;
+  return <ClientProfile profile={data} clientId={clientId} isOwnProfile={isOwnProfile} />;
 }

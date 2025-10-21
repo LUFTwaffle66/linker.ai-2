@@ -43,25 +43,10 @@ export function Login({ onNavigate, onLogin }: LoginProps) {
   });
 
   const loginMutation = useLogin({
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success('Welcome back!');
-      console.log('Login successful:', data);
       onLogin?.(activeTab);
-
-      // Check if user needs onboarding (you can add a flag from API response)
-      // For now, redirect to onboarding if it's a new user
-      const needsOnboarding = data.isNewUser || false; // Update this based on API response
-
-      if (needsOnboarding) {
-        // Redirect to appropriate onboarding
-        if (activeTab === 'client') {
-          router.push(paths.auth.onboardingClient.getHref());
-        } else {
-          router.push(paths.auth.onboardingFreelancer.getHref());
-        }
-      } else {
-        router.push(paths.app.dashboard.getHref());
-      }
+      router.push(paths.app.dashboard.getHref());
     },
     onError: (error) => {
       toast.error('Invalid email or password. Please try again.');
@@ -73,8 +58,6 @@ export function Login({ onNavigate, onLogin }: LoginProps) {
     loginMutation.mutate({
       email: data.email,
       password: data.password,
-      userType: activeTab,
-      rememberMe: data.rememberMe,
     });
   };
 
