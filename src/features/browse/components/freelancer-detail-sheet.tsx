@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
-  CheckCircle, Star, MapPin, Briefcase, Globe, Award, MessageSquare, TrendingUp, DollarSign
+  CheckCircle, Star, MapPin, Briefcase, MessageSquare, TrendingUp
 } from 'lucide-react';
 import {
   Sheet,
@@ -17,7 +18,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { BrowseFreelancer } from '../types';
-import { cn } from '@/lib/utils';
 import { AuthRequiredDialog } from './auth-required-dialog';
 
 interface FreelancerDetailSheetProps {
@@ -25,7 +25,6 @@ interface FreelancerDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSendMessage?: (freelancer: BrowseFreelancer) => void;
-  isAuthenticated?: boolean;
 }
 
 export function FreelancerDetailSheet({
@@ -33,8 +32,9 @@ export function FreelancerDetailSheet({
   open,
   onOpenChange,
   onSendMessage,
-  isAuthenticated = false
 }: FreelancerDetailSheetProps) {
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
   const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   if (!freelancer) return null;
@@ -70,10 +70,10 @@ export function FreelancerDetailSheet({
             <div className="flex items-start gap-4">
               <Avatar className="w-20 h-20 flex-shrink-0">
                 {freelancer.user.avatar_url ? (
-                  <img src={freelancer.user.avatar_url} alt={freelancer.user.full_name} />
+                  <img src={freelancer.user.avatar_url} alt={freelancer.user.full_name ?? ''} />
                 ) : (
                   <AvatarFallback className="text-xl">
-                    {freelancer.user.full_name.substring(0, 2).toUpperCase()}
+                    {freelancer.user.full_name?.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 )}
               </Avatar>
@@ -156,27 +156,21 @@ export function FreelancerDetailSheet({
               <Separator />
 
               {/* Work Experience */}
-              {freelancer.work_experience && freelancer.work_experience.length > 0 && (
+              {freelancer.experience && (
                 <>
                   <div>
                     <h3 className="font-medium mb-3">Work Experience</h3>
                     <div className="space-y-4">
-                      {freelancer.work_experience.map((exp, index) => (
-                        <div key={index} className="space-y-1">
+                        <div className="space-y-1">
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-medium">{exp.title}</p>
-                              <p className="text-sm text-muted-foreground">{exp.company}</p>
+                              <p className="font-medium">{freelancer.title}</p>
                             </div>
                             <p className="text-xs text-muted-foreground whitespace-nowrap">
-                              {exp.start_date} - {exp.end_date || 'Present'}
+                              {freelancer.experience} years
                             </p>
                           </div>
-                          {exp.description && (
-                            <p className="text-sm text-muted-foreground">{exp.description}</p>
-                          )}
                         </div>
-                      ))}
                     </div>
                   </div>
                   <Separator />
@@ -205,9 +199,9 @@ export function FreelancerDetailSheet({
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
-                          {item.technologies && item.technologies.length > 0 && (
+                          {item.technologies && (item.technologies as string[]).length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {item.technologies.map((tech, techIndex) => (
+                              {(item.technologies as string[]).map((tech: string, techIndex: number) => (
                                 <Badge key={techIndex} variant="secondary" className="text-xs">
                                   {tech}
                                 </Badge>

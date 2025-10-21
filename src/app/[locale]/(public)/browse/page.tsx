@@ -61,10 +61,6 @@ export default function BrowsePage() {
   const [projectFilters, setProjectFilters] = useState<BrowseFilters>({});
   const [freelancerFilters, setFreelancerFilters] = useState<FreelancerFilters>({});
 
-  // TODO: Replace with actual authentication check
-  // For now, set to false to show the auth dialog
-  const isAuthenticated = false;
-
   // Fetch data using React Query hooks
   const {
     data: projectsData,
@@ -411,7 +407,6 @@ export default function BrowsePage() {
         open={!!selectedProject}
         onOpenChange={(open) => !open && setSelectedProject(null)}
         onSubmitProposal={handleSubmitProposal}
-        isAuthenticated={isAuthenticated}
       />
 
       {/* Freelancer Detail Sheet */}
@@ -420,7 +415,6 @@ export default function BrowsePage() {
         open={!!selectedFreelancer}
         onOpenChange={(open) => !open && setSelectedFreelancer(null)}
         onSendMessage={handleSendMessage}
-        isAuthenticated={isAuthenticated}
       />
     </div>
   );

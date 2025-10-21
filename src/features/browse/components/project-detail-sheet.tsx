@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Globe, DollarSign, Clock, User, FileText, CheckCircle, Star, MapPin
@@ -25,7 +26,6 @@ interface ProjectDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmitProposal?: (project: BrowseProject) => void;
-  isAuthenticated?: boolean;
 }
 
 export function ProjectDetailSheet({
@@ -33,8 +33,9 @@ export function ProjectDetailSheet({
   open,
   onOpenChange,
   onSubmitProposal,
-  isAuthenticated = false
 }: ProjectDetailSheetProps) {
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
   const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   if (!project) return null;
@@ -165,20 +166,20 @@ export function ProjectDetailSheet({
               <div>
                 <h3 className="font-medium mb-3">About the client</h3>
                 <div className="space-y-3">
-                  {/* <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10">
                       <AvatarFallback>
-                        {project.client.user?.full_name?.substring(0, 2).toUpperCase() ?? ''}
+                        {project.client.full_name?.substring(0, 2).toUpperCase() ?? ''}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{project.client.user?.full_name ?? ''}</p>
+                        <p className="font-medium">{project.client.full_name ?? ''}</p>
                         <CheckCircle className="w-4 h-4 text-green-500" />
                       </div>
-                      <p className="text-sm text-muted-foreground">{project.client.user?.email ?? ''}</p>
+                      <p className="text-sm text-muted-foreground">{project.client.company_name ?? ''}</p>
                     </div>
-                  </div> */}
+                  </div>
                   <div className="text-sm">
                     <p className="text-muted-foreground mb-1">Member since</p>
                     <p>{formatDistanceToNow(new Date(project.created_at), { addSuffix: true })}</p>
