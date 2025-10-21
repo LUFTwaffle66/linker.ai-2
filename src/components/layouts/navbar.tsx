@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTheme } from 'next-themes';
 import { useRouter, usePathname, Link } from '@/i18n/routing';
 import { useLocale } from 'next-intl';
 import { useSession, signOut } from 'next-auth/react';
@@ -48,9 +49,9 @@ export function Navigation() {
   const pathname = usePathname();
   const locale = useLocale();
   const { data: session, status } = useSession();
+  const { theme, setTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [onlineForMessages, setOnlineForMessages] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isLoggedIn = status === 'authenticated' && !!session?.user;
@@ -305,9 +306,12 @@ export function Navigation() {
                     <div className="flex items-center justify-between px-3 py-2 hover:bg-accent rounded-sm">
                       <div className="flex items-center">
                         <Moon className="w-4 h-4 mr-3" />
-                        <span className="text-sm">Theme: {darkMode ? 'Dark' : 'Light'}</span>
+                        <span className="text-sm">Theme: {theme === 'dark' ? 'Dark' : 'Light'}</span>
                       </div>
-                      <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                      <Switch
+                        checked={theme === 'dark'}
+                        onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                      />
                     </div>
 
                     <DropdownMenuItem className="cursor-pointer" onClick={() => router.push(paths.app.settings.getHref())}>
@@ -504,7 +508,10 @@ export function Navigation() {
                             <Moon className="w-4 h-4 mr-2" />
                             <span className="text-sm">Dark Mode</span>
                           </div>
-                          <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+                          <Switch
+                            checked={theme === 'dark'}
+                            onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                          />
                         </div>
                       </div>
 

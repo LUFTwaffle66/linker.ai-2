@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Globe, DollarSign, Clock, User, FileText, CheckCircle, Star, MapPin
 } from 'lucide-react';
@@ -16,14 +17,14 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { type Project } from '@/types/browse';
+import type { BrowseProject } from '../types';
 import { AuthRequiredDialog } from './auth-required-dialog';
 
 interface ProjectDetailSheetProps {
-  project: Project | null;
+  project: BrowseProject | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmitProposal?: (project: Project) => void;
+  onSubmitProposal?: (project: BrowseProject) => void;
   isAuthenticated?: boolean;
 }
 
@@ -47,6 +48,17 @@ export function ProjectDetailSheet({
     onOpenChange(false);
   };
 
+  // Format budget
+  const formattedBudget = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(project.fixed_budget);
+
+  // Format posted date
+  const postedDate = formatDistanceToNow(new Date(project.created_at), { addSuffix: true });
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -57,14 +69,17 @@ export function ProjectDetailSheet({
               <div className="flex-1 pr-4">
                 <SheetTitle className="text-2xl mb-2">{project.title}</SheetTitle>
                 <SheetDescription className="flex items-center gap-2 text-sm">
-                  <span>Posted {project.postedDate}</span>
+                  <span>Posted {postedDate}</span>
                   <span>•</span>
                   <span className="flex items-center gap-1">
                     <Globe className="w-3 h-3" />
-                    {project.location || 'Worldwide'}
+                    Worldwide
                   </span>
                 </SheetDescription>
               </div>
+              <Badge variant="secondary" className="flex-shrink-0">
+                {project.category}
+              </Badge>
             </div>
           </SheetHeader>
 
@@ -72,31 +87,13 @@ export function ProjectDetailSheet({
             <div className="space-y-6">
               {/* Summary */}
               <div>
-                <h3 className="font-medium mb-3">Summary</h3>
+                <h3 className="font-medium mb-3">Project Description</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {project.fullDescription || project.description}
+                  {project.description}
                 </p>
               </div>
 
               <Separator />
-
-              {/* Deliverables */}
-              {project.deliverables && (
-                <>
-                  <div>
-                    <h3 className="font-medium mb-3">Deliverables</h3>
-                    <ul className="space-y-2">
-                      {project.deliverables.map((item, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-muted-foreground">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <Separator />
-                </>
-              )}
 
               {/* Project Details */}
               <div className="grid grid-cols-2 gap-4">
@@ -105,7 +102,7 @@ export function ProjectDetailSheet({
                     <DollarSign className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Budget</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{project.budget}</p>
+                  <p className="text-lg font-medium text-primary">{formattedBudget}</p>
                   <p className="text-xs text-muted-foreground mt-1">Fixed price</p>
                 </div>
                 <div>
@@ -120,14 +117,14 @@ export function ProjectDetailSheet({
                     <User className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Experience Level</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{project.experienceLevel || 'Intermediate'}</p>
+                  <p className="text-sm text-muted-foreground">Intermediate</p>
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <FileText className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Project Type</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{project.projectType || 'One-time project'}</p>
+                  <p className="text-sm text-muted-foreground">One-time project</p>
                 </div>
               </div>
 
@@ -135,23 +132,23 @@ export function ProjectDetailSheet({
 
               {/* Skills and Expertise */}
               <div>
-                <h3 className="font-medium mb-3">Skills and Expertise</h3>
+                <h3 className="font-medium mb-3">Required Skills & Technologies</h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-2">Mandatory skills</p>
+                    <p className="text-xs text-muted-foreground mb-2">Core skills</p>
                     <div className="flex flex-wrap gap-2">
-                      {project.skills.slice(0, 2).map((skill) => (
+                      {project.skills.slice(0, 3).map((skill) => (
                         <Badge key={skill} className="bg-primary/10 text-primary border-primary/20">
                           {skill}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  {project.skills.length > 2 && (
+                  {project.skills.length > 3 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Nice-to-have skills</p>
+                      <p className="text-xs text-muted-foreground mb-2">Additional skills</p>
                       <div className="flex flex-wrap gap-2">
-                        {project.skills.slice(2).map((skill) => (
+                        {project.skills.slice(3).map((skill) => (
                           <Badge key={skill} variant="secondary">
                             {skill}
                           </Badge>
@@ -168,44 +165,23 @@ export function ProjectDetailSheet({
               <div>
                 <h3 className="font-medium mb-3">About the client</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
+                  {/* <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10">
                       <AvatarFallback>
-                        {project.client.name.substring(0, 2)}
+                        {project.client.user?.full_name?.substring(0, 2).toUpperCase() ?? ''}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium">{project.client.name}</p>
-                        {project.client.verified && (
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                        )}
+                        <p className="font-medium">{project.client.user?.full_name ?? ''}</p>
+                        <CheckCircle className="w-4 h-4 text-green-500" />
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        <span>{project.client.rating}</span>
-                      </div>
+                      <p className="text-sm text-muted-foreground">{project.client.user?.email ?? ''}</p>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Payment verified</p>
-                      <div className="flex items-center gap-1 text-green-500 mt-1">
-                        <CheckCircle className="w-3 h-3" />
-                        <span>Yes</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total spent</p>
-                      <p className="font-medium mt-1">{project.client.spent}</p>
-                    </div>
-                  </div>
+                  </div> */}
                   <div className="text-sm">
-                    <p className="text-muted-foreground mb-1">Location</p>
-                    <p className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      United States
-                    </p>
+                    <p className="text-muted-foreground mb-1">Member since</p>
+                    <p>{formatDistanceToNow(new Date(project.created_at), { addSuffix: true })}</p>
                   </div>
                 </div>
               </div>
@@ -214,23 +190,21 @@ export function ProjectDetailSheet({
 
               {/* Activity */}
               <div>
-                <h3 className="font-medium mb-3">Activity on this job</h3>
+                <h3 className="font-medium mb-3">Activity on this project</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Proposals</span>
-                    <span className="font-medium">{project.proposals}</span>
+                    <span className="font-medium">{project.proposal_count}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Last viewed by client</span>
-                    <span className="font-medium">5 minutes ago</span>
+                    <span className="text-muted-foreground">Posted</span>
+                    <span className="font-medium">{postedDate}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Interviewing</span>
-                    <span className="font-medium">0</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Invites sent</span>
-                    <span className="font-medium">0</span>
+                    <span className="text-muted-foreground">Status</span>
+                    <Badge variant="outline" className="text-green-500 border-green-500/20">
+                      {(project?.status === 'open') ? 'Active' : 'Draft'}
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -247,7 +221,7 @@ export function ProjectDetailSheet({
               Submit Proposal
             </Button>
             <p className="text-xs text-muted-foreground text-center mt-3">
-              Send a proposal for {project.connects || 7} Connects
+              Submit a proposal to apply for this project
             </p>
           </div>
         </div>

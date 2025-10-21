@@ -21,14 +21,20 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import { ProjectCard } from '@/components/browse/project-card';
-import { FreelancerCard } from '@/components/browse/freelancer-card';
-import { ProjectDetailSheet } from '@/components/browse/project-detail-sheet';
-import { FreelancerDetailSheet } from '@/components/browse/freelancer-detail-sheet';
-import { BrowseFilters } from '@/components/browse/browse-filters';
-import { type Project, type Expert } from '@/types/browse';
-import { MOCK_PROJECTS, MOCK_FREELANCERS } from '@/lib/mock-data';
+import {
+  ProjectCard,
+  FreelancerCard,
+  ProjectDetailSheet,
+  FreelancerDetailSheet,
+  BrowseFiltersComponent,
+  useBrowseProjects,
+  useBrowseFreelancers,
+  useProjectCategories,
+  useFreelancerSkills,
+} from '@/features/browse';
+import type { BrowseProject, BrowseFreelancer, BrowseFilters, FreelancerFilters } from '@/features/browse';
 import { paths } from '@/config/paths';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -41,21 +47,43 @@ export default function BrowsePage() {
   const tabParam = searchParams.get('tab');
   const queryParam = searchParams.get('q');
 
-  const [activeTab, setActiveTab] = useState(tabParam === 'freelancers' ? 'freelancers' : 'projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'freelancers'>(
+    tabParam === 'freelancers' ? 'freelancers' : 'projects'
+  );
   const [searchQuery, setSearchQuery] = useState(queryParam || '');
   const [showFilters, setShowFilters] = useState(false);
   const [projectsPage, setProjectsPage] = useState(1);
   const [freelancersPage, setFreelancersPage] = useState(1);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [selectedFreelancer, setSelectedFreelancer] = useState<Expert | null>(null);
+  const [selectedProject, setSelectedProject] = useState<BrowseProject | null>(null);
+  const [selectedFreelancer, setSelectedFreelancer] = useState<BrowseFreelancer | null>(null);
+
+  // Filters state
+  const [projectFilters, setProjectFilters] = useState<BrowseFilters>({});
+  const [freelancerFilters, setFreelancerFilters] = useState<FreelancerFilters>({});
 
   // TODO: Replace with actual authentication check
   // For now, set to false to show the auth dialog
   const isAuthenticated = false;
 
+  // Fetch data using React Query hooks
+  const {
+    data: projectsData,
+    isLoading: projectsLoading,
+    error: projectsError,
+  } = useBrowseProjects(projectFilters);
+
+  const {
+    data: freelancersData,
+    isLoading: freelancersLoading,
+    error: freelancersError,
+  } = useBrowseFreelancers(freelancerFilters);
+
+  const { data: categories = [] } = useProjectCategories();
+  const { data: skills = [] } = useFreelancerSkills();
+
   // Update URL when tab changes
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
+    setActiveTab(tab as 'projects' | 'freelancers');
     updateURL({ tab, q: searchQuery });
   };
 
@@ -80,16 +108,20 @@ export default function BrowsePage() {
 
   // Handle search
   const handleSearch = () => {
+    if (activeTab === 'projects') {
+      setProjectFilters({ ...projectFilters, search: searchQuery });
+    } else {
+      setFreelancerFilters({ ...freelancerFilters, search: searchQuery });
+    }
     updateURL({ tab: activeTab, q: searchQuery });
   };
 
   // Sync state with URL params on mount and param changes
-  // This constantly monitors URL search params and updates component state accordingly
   useEffect(() => {
     const validTab = tabParam === 'freelancers' || tabParam === 'projects' ? tabParam : 'projects';
 
     if (validTab !== activeTab) {
-      setActiveTab(validTab);
+      setActiveTab(validTab as 'projects' | 'freelancers');
     }
 
     if (queryParam !== searchQuery) {
@@ -97,8 +129,8 @@ export default function BrowsePage() {
     }
   }, [tabParam, queryParam]);
 
-  const projects = MOCK_PROJECTS;
-  const freelancers = MOCK_FREELANCERS;
+  const projects = projectsData || [];
+  const freelancers = freelancersData || [];
 
   // Separate pagination calculations for projects
   const projectsTotalPages = Math.ceil(projects.length / ITEMS_PER_PAGE);
@@ -114,14 +146,24 @@ export default function BrowsePage() {
     freelancersPage * ITEMS_PER_PAGE
   );
 
-  const handleSubmitProposal = (project: Project) => {
+  const handleSubmitProposal = (project: BrowseProject) => {
     // Navigate to submit proposal page with project ID
     router.push(paths.app.submitProposal.getHref(project.id));
   };
 
-  const handleSendMessage = (freelancer: Expert) => {
+  const handleSendMessage = (freelancer: BrowseFreelancer) => {
     console.log('Send message to:', freelancer);
     // TODO: Navigate to messages or open messaging interface
+  };
+
+  const handleProjectFiltersChange = (filters: BrowseFilters | FreelancerFilters) => {
+    setProjectFilters(filters as BrowseFilters);
+    setProjectsPage(1); // Reset to first page when filters change
+  };
+
+  const handleFreelancerFiltersChange = (filters: BrowseFilters | FreelancerFilters) => {
+    setFreelancerFilters(filters as FreelancerFilters);
+    setFreelancersPage(1); // Reset to first page when filters change
   };
 
   return (
@@ -164,8 +206,12 @@ export default function BrowsePage() {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2 max-w-md">
-              <TabsTrigger value="projects">Projects ({projects.length})</TabsTrigger>
-              <TabsTrigger value="freelancers">AI Experts ({freelancers.length})</TabsTrigger>
+              <TabsTrigger value="projects">
+                Projects ({projectsLoading ? '...' : projects.length})
+              </TabsTrigger>
+              <TabsTrigger value="freelancers">
+                AI Experts ({freelancersLoading ? '...' : freelancers.length})
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -173,7 +219,15 @@ export default function BrowsePage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Filters Sidebar */}
           <div className={`lg:col-span-1 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <BrowseFilters activeTab={activeTab} />
+            <BrowseFiltersComponent
+              activeTab={activeTab}
+              filters={activeTab === 'projects' ? projectFilters : freelancerFilters}
+              onFiltersChange={
+                activeTab === 'projects' ? handleProjectFiltersChange : handleFreelancerFiltersChange
+              }
+              availableCategories={categories}
+              availableSkills={skills}
+            />
           </div>
 
           {/* Results */}
@@ -182,7 +236,9 @@ export default function BrowsePage() {
               {/* Projects Tab */}
               <TabsContent value="projects" className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground">{projects.length} projects found</p>
+                  <p className="text-muted-foreground">
+                    {projectsLoading ? 'Loading...' : `${projects.length} projects found`}
+                  </p>
                   <Select defaultValue="relevance">
                     <SelectTrigger className="w-[180px]">
                       <SelectValue />
@@ -196,56 +252,77 @@ export default function BrowsePage() {
                   </Select>
                 </div>
 
-                {paginatedProjects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    onClick={setSelectedProject}
-                  />
-                ))}
+                {projectsLoading ? (
+                  // Loading skeletons
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-3">
+                      <Skeleton className="h-48 w-full" />
+                    </div>
+                  ))
+                ) : projectsError ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">Error loading projects. Please try again.</p>
+                  </div>
+                ) : paginatedProjects.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No projects found. Try adjusting your filters.</p>
+                  </div>
+                ) : (
+                  <>
+                    {paginatedProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onClick={setSelectedProject}
+                      />
+                    ))}
 
-                {/* Projects Pagination */}
-                {projectsTotalPages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => setProjectsPage((prev) => Math.max(1, prev - 1))}
-                          className={
-                            projectsPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'
-                          }
-                        />
-                      </PaginationItem>
-                      {[...Array(projectsTotalPages)].map((_, i) => (
-                        <PaginationItem key={i}>
-                          <PaginationLink
-                            onClick={() => setProjectsPage(i + 1)}
-                            isActive={projectsPage === i + 1}
-                            className="cursor-pointer"
-                          >
-                            {i + 1}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => setProjectsPage((prev) => Math.min(projectsTotalPages, prev + 1))}
-                          className={
-                            projectsPage === projectsTotalPages
-                              ? 'pointer-events-none opacity-50'
-                              : 'cursor-pointer'
-                          }
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
+                    {/* Projects Pagination */}
+                    {projectsTotalPages > 1 && (
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => setProjectsPage((prev) => Math.max(1, prev - 1))}
+                              className={
+                                projectsPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                          {[...Array(projectsTotalPages)].map((_, i) => (
+                            <PaginationItem key={i}>
+                              <PaginationLink
+                                onClick={() => setProjectsPage(i + 1)}
+                                isActive={projectsPage === i + 1}
+                                className="cursor-pointer"
+                              >
+                                {i + 1}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() => setProjectsPage((prev) => Math.min(projectsTotalPages, prev + 1))}
+                              className={
+                                projectsPage === projectsTotalPages
+                                  ? 'pointer-events-none opacity-50'
+                                  : 'cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    )}
+                  </>
                 )}
               </TabsContent>
 
               {/* Freelancers Tab */}
               <TabsContent value="freelancers" className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground">{freelancers.length} experts found</p>
+                  <p className="text-muted-foreground">
+                    {freelancersLoading ? 'Loading...' : `${freelancers.length} experts found`}
+                  </p>
                   <Select defaultValue="relevance">
                     <SelectTrigger className="w-[180px]">
                       <SelectValue />
@@ -259,49 +336,68 @@ export default function BrowsePage() {
                   </Select>
                 </div>
 
-                {paginatedFreelancers.map((freelancer) => (
-                  <FreelancerCard
-                    key={freelancer.id}
-                    freelancer={freelancer}
-                    onClick={setSelectedFreelancer}
-                  />
-                ))}
+                {freelancersLoading ? (
+                  // Loading skeletons
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-3">
+                      <Skeleton className="h-48 w-full" />
+                    </div>
+                  ))
+                ) : freelancersError ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">Error loading freelancers. Please try again.</p>
+                  </div>
+                ) : paginatedFreelancers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No freelancers found. Try adjusting your filters.</p>
+                  </div>
+                ) : (
+                  <>
+                    {paginatedFreelancers.map((freelancer) => (
+                      <FreelancerCard
+                        key={freelancer.id}
+                        freelancer={freelancer}
+                        onClick={setSelectedFreelancer}
+                      />
+                    ))}
 
-                {/* Freelancers Pagination */}
-                {freelancersTotalPages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious
-                          onClick={() => setFreelancersPage((prev) => Math.max(1, prev - 1))}
-                          className={
-                            freelancersPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'
-                          }
-                        />
-                      </PaginationItem>
-                      {[...Array(freelancersTotalPages)].map((_, i) => (
-                        <PaginationItem key={i}>
-                          <PaginationLink
-                            onClick={() => setFreelancersPage(i + 1)}
-                            isActive={freelancersPage === i + 1}
-                            className="cursor-pointer"
-                          >
-                            {i + 1}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext
-                          onClick={() => setFreelancersPage((prev) => Math.min(freelancersTotalPages, prev + 1))}
-                          className={
-                            freelancersPage === freelancersTotalPages
-                              ? 'pointer-events-none opacity-50'
-                              : 'cursor-pointer'
-                          }
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
+                    {/* Freelancers Pagination */}
+                    {freelancersTotalPages > 1 && (
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => setFreelancersPage((prev) => Math.max(1, prev - 1))}
+                              className={
+                                freelancersPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                          {[...Array(freelancersTotalPages)].map((_, i) => (
+                            <PaginationItem key={i}>
+                              <PaginationLink
+                                onClick={() => setFreelancersPage(i + 1)}
+                                isActive={freelancersPage === i + 1}
+                                className="cursor-pointer"
+                              >
+                                {i + 1}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() => setFreelancersPage((prev) => Math.min(freelancersTotalPages, prev + 1))}
+                              className={
+                                freelancersPage === freelancersTotalPages
+                                  ? 'pointer-events-none opacity-50'
+                                  : 'cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    )}
+                  </>
                 )}
               </TabsContent>
             </Tabs>

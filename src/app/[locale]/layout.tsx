@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 import { TRPCReactProvider } from "@/trpc/react";
 import { AppProvider } from "./provider";
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
 	title: "Linkerai",
@@ -44,16 +45,23 @@ export default async function RootLayout({
 	const messages = await getMessages();
 
 	return (
-		<html lang={locale} className={`${geist.variable}`}>
+		<html lang={locale} className={`${geist.variable}`} suppressHydrationWarning>
 			<body>
-				<NextIntlClientProvider messages={messages}>
-					<TRPCReactProvider>
-						<AppProvider>
-							{children}
-							<Toaster />
-						</AppProvider>
-					</TRPCReactProvider>
-				</NextIntlClientProvider>
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="system"
+					enableSystem
+					disableTransitionOnChange
+				>
+					<NextIntlClientProvider messages={messages}>
+						<TRPCReactProvider>
+							<AppProvider>
+								{children}
+								<Toaster />
+							</AppProvider>
+						</TRPCReactProvider>
+					</NextIntlClientProvider>
+				</ThemeProvider>
 			</body>
 		</html>
 	);
