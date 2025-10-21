@@ -19,7 +19,7 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ otherParticipant, conversation, onConversationDeleted }: ChatHeaderProps) {
   const initials = otherParticipant.name
-    .split(' ')
+    ?.split(' ')
     .map((n) => n[0])
     .join('')
     .toUpperCase();

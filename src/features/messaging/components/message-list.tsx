@@ -26,7 +26,7 @@ export function MessageList({ conversationId, currentUserId }: MessageListProps)
   const getDateLabel = (date: Date): string => {
     if (isToday(date)) return 'Today';
     if (isYesterday(date)) return 'Yesterday';
-    return format(date, 'MMMM d, yyyy');
+    return "";
   };
 
   const shouldShowDateSeparator = (currentMessage: Message, previousMessage?: Message): boolean => {

@@ -54,7 +54,7 @@ export function MessageInput({ conversationId, currentUserId }: MessageInputProp
     <div className="p-4 border-t bg-background">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-end gap-2">
-          <Button
+          {/* <Button
             type="button"
             variant="outline"
             size="icon"
@@ -75,7 +75,7 @@ export function MessageInput({ conversationId, currentUserId }: MessageInputProp
             }}
           >
             <Paperclip className="w-4 h-4" />
-          </Button>
+          </Button> */}
 
           <FormField
             control={form.control}

@@ -31,13 +31,18 @@ export interface Message {
 
 export interface Conversation {
   id: string;
-  participants: User[];
-  lastMessage: Message;
-  unreadCount: number;
+  last_message_id: string;
+  last_message_content: string;
+  last_message_sender_id: string;
+  last_message_created_at: string;
+  other_participant_id: string;
+  other_participant_name: string;
+  other_participant_avatar: string;
+  unread_count: number;
+  participants: any[];
+  lastMessage: any;
   isMuted: boolean;
   isStarred: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface ConversationSettings {

@@ -62,9 +62,11 @@ export async function createOrGetConversation(userId1: string, userId2: string):
     .in('user_id', [userId1, userId2]);
 
   const conversationCounts = existingConversations?.reduce((acc, curr) => {
-    acc[curr.conversation_id] = (acc[curr.conversation_id] || 0) + 1;
+    if (curr.conversation_id) {
+      acc[curr.conversation_id] = (acc[curr.conversation_id] || 0) + 1;
+    }
     return acc;
-  }, {} as Record<string, number>);
+  }, {} as Record<string, number>) || {};
 
   const conversationId = conversationCounts && Object.keys(conversationCounts).find((id) => conversationCounts[id] > 1);
 
@@ -79,6 +81,7 @@ export async function createOrGetConversation(userId1: string, userId2: string):
     .single();
 
   if (error) throw error;
+  if (!newConversation) throw new Error('Failed to create conversation');
 
   await supabase
     .from('conversation_participants')

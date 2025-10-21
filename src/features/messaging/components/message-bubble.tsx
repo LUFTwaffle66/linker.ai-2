@@ -40,7 +40,7 @@ export function MessageBubble({ message, isCurrentUser }: MessageBubbleProps) {
               isCurrentUser ? 'text-primary-foreground/70' : 'text-muted-foreground'
             )}
           >
-            {format(new Date(message.timestamp), 'HH:mm')}
+            {/* {format(new Date(message.timestamp), 'HH:mm')} */}
           </span>
 
           {isCurrentUser && (

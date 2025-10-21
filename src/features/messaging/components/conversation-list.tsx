@@ -24,8 +24,8 @@ export function ConversationList({
   const { data: conversations, isLoading } = useConversations(currentUserId);
 
   const displayedConversations = conversations?.filter((c) => {
-    const otherParticipant = c.participants.find((p) => p.id !== currentUserId);
-    return otherParticipant?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const otherParticipant = c.participants.find((p: any) => p.user.id !== currentUserId);
+    return otherParticipant?.user.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
@@ -45,6 +45,7 @@ export function ConversationList({
       </div>
 
       <ScrollArea className="flex-1">
+        {/* <pre>{JSON.stringify(conversations, null, 2)}</pre> */}
         {isLoading ? (
           <div className="p-4 text-center text-muted-foreground">Loading conversations...</div>
         ) : !displayedConversations || displayedConversations.length === 0 ? (
