@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { paths } from '@/config/paths';
 import { proposalSchema, type ProposalFormData } from '../types';
+import { useCreateProposal } from '../hooks/use-proposals';
 import type { Project } from '@/types/browse';
 import {
   CoverLetterSection,
@@ -46,10 +47,7 @@ const DEFAULT_PROJECT: Project = {
 
 const FORM_DEFAULT_VALUES: ProposalFormData = {
   coverLetter: '',
-  budgetType: 'fixed',
   totalBudget: '',
-  hourlyRate: '',
-  estimatedHours: '',
   timeline: '',
   attachments: [],
 };
@@ -66,7 +64,7 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
     defaultValues: FORM_DEFAULT_VALUES,
   });
 
-  const budgetType = form.watch('budgetType');
+  const createProposalMutation = useCreateProposal();
   const totalBudget = form.watch('totalBudget');
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,10 +80,24 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
     form.setValue('attachments', newAttachments);
   };
 
-  const onSubmit = (data: ProposalFormData) => {
-    console.log('Proposal data:', data);
-    // TODO: Submit to API
-    setShowSuccessDialog(true);
+  const onSubmit = async (data: ProposalFormData) => {
+    try {
+      // Convert project.id to string if it's a number
+      const projectId = typeof project.id === 'number' ? String(project.id) : project.id;
+
+      await createProposalMutation.mutateAsync({
+        projectId,
+        coverLetter: data.coverLetter,
+        totalBudget: data.totalBudget,
+        timeline: data.timeline,
+        attachments: data.attachments || [],
+      });
+
+      setShowSuccessDialog(true);
+    } catch (error) {
+      // Error is handled by the mutation hook
+      console.error('Failed to submit proposal:', error);
+    }
   };
 
   const handleSuccessClose = () => {
@@ -102,7 +114,7 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
     // TODO: Navigate to proposals page
   };
 
-  const showPaymentStructure = budgetType === 'fixed' && totalBudget && !isNaN(parseFloat(totalBudget));
+  const showPaymentStructure = totalBudget && !isNaN(parseFloat(totalBudget));
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -124,7 +136,6 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
 
                 <BudgetTimelineSection
                   control={form.control}
-                  budgetType={budgetType}
                   projectBudget={project.budget}
                   projectTimeline={project.timeline}
                 />
@@ -143,9 +154,6 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
                 <div className="flex items-center gap-4">
                   <Button type="submit" size="lg" className="flex-1">
                     Submit Proposal
-                  </Button>
-                  <Button type="button" variant="outline" size="lg">
-                    Save Draft
                   </Button>
                 </div>
               </div>

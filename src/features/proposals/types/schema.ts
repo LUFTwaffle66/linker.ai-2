@@ -1,15 +1,6 @@
 import { z } from 'zod';
 
 /**
- * Proposal budget type - determines payment structure
- * - fixed: One-time payment for entire project
- * - hourly: Payment based on hours worked
- */
-export const budgetTypeEnum = z.enum(['fixed', 'hourly'], {
-  errorMap: () => ({ message: 'Please select a payment type' }),
-});
-
-/**
  * Cover letter validation
  * Requires meaningful content between 100-5000 characters
  */
@@ -26,7 +17,7 @@ const coverLetterSchema = z
  * Budget validation for fixed-price projects
  * Must be a positive number greater than or equal to $50
  */
-const fixedBudgetSchema = z
+const totalBudgetSchema = z
   .string()
   .min(1, 'Budget is required')
   .refine(
@@ -36,34 +27,6 @@ const fixedBudgetSchema = z
   .refine(
     (value) => !isNaN(Number(value)) && Number(value) <= 1000000,
     'Budget must be less than $1,000,000'
-  );
-
-/**
- * Hourly rate validation
- * Must be between $5/hr and $500/hr
- */
-const hourlyRateSchema = z
-  .string()
-  .min(1, 'Hourly rate is required')
-  .refine(
-    (value) => !isNaN(Number(value)) && Number(value) >= 5,
-    'Hourly rate must be at least $5'
-  )
-  .refine(
-    (value) => !isNaN(Number(value)) && Number(value) <= 500,
-    'Hourly rate must be less than $500'
-  );
-
-/**
- * Estimated hours validation (optional for hourly projects)
- * If provided, must be a positive number
- */
-const estimatedHoursSchema = z
-  .string()
-  .optional()
-  .refine(
-    (value) => !value || (!isNaN(Number(value)) && Number(value) > 0),
-    'Estimated hours must be a positive number'
   );
 
 /**
@@ -89,45 +52,15 @@ const attachmentsSchema = z
   .default([]);
 
 /**
- * Main proposal form schema with conditional validation
- * based on budget type (fixed vs hourly)
+ * Main proposal form schema
+ * All projects use fixed-price budgeting
  */
-export const proposalSchema = z
-  .object({
-    coverLetter: coverLetterSchema,
-    budgetType: budgetTypeEnum,
-    totalBudget: z.string().optional(),
-    hourlyRate: z.string().optional(),
-    estimatedHours: estimatedHoursSchema,
-    timeline: timelineSchema,
-    attachments: attachmentsSchema,
-  })
-  .refine(
-    (data) => {
-      // If budgetType is 'fixed', totalBudget must be valid
-      if (data.budgetType === 'fixed') {
-        return data.totalBudget && fixedBudgetSchema.safeParse(data.totalBudget).success;
-      }
-      return true;
-    },
-    {
-      message: 'Total budget is required and must be at least $50 for fixed price projects',
-      path: ['totalBudget'],
-    }
-  )
-  .refine(
-    (data) => {
-      // If budgetType is 'hourly', hourlyRate must be valid
-      if (data.budgetType === 'hourly') {
-        return data.hourlyRate && hourlyRateSchema.safeParse(data.hourlyRate).success;
-      }
-      return true;
-    },
-    {
-      message: 'Hourly rate is required and must be between $5-$500 for hourly projects',
-      path: ['hourlyRate'],
-    }
-  );
+export const proposalSchema = z.object({
+  coverLetter: coverLetterSchema,
+  totalBudget: totalBudgetSchema,
+  timeline: timelineSchema,
+  attachments: attachmentsSchema,
+});
 
 /**
  * Inferred TypeScript type from proposal schema
@@ -179,8 +112,7 @@ export interface ProposalListItem {
   projectTitle: string;
   clientName: string;
   status: ProposalStatus;
-  budgetType: 'fixed' | 'hourly';
-  amount: string; // Display amount based on budget type
+  amount: string; // Fixed-price budget amount
   submittedAt: Date;
   viewedByClient: boolean;
 }
