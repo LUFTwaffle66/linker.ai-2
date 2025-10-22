@@ -33,10 +33,13 @@ export function ProjectDetailSheet({
   onOpenChange,
   onSubmitProposal,
 }: ProjectDetailSheetProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   if (!project) return null;
+
+  // Check if current user is the project owner
+  const isOwnProject = user?.id === project.client_id;
 
   const handleSubmitProposal = () => {
     if (!isAuthenticated) {
@@ -211,18 +214,20 @@ export function ProjectDetailSheet({
           </ScrollArea>
 
           {/* Action Buttons */}
-          <div className="px-6 py-4 border-t bg-background">
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleSubmitProposal}
-            >
-              Submit Proposal
-            </Button>
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              Submit a proposal to apply for this project
-            </p>
-          </div>
+          {!isOwnProject && (
+            <div className="px-6 py-4 border-t bg-background">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSubmitProposal}
+              >
+                Submit Proposal
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Submit a proposal to apply for this project
+              </p>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

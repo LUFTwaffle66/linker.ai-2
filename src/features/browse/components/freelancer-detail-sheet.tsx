@@ -42,6 +42,9 @@ export function FreelancerDetailSheet({
 
   if (!freelancer) return null;
 
+  // Check if current user is viewing their own profile
+  const isOwnProfile = user?.id === freelancer.user_id;
+
   const handleSendMessage = async () => {
     if (!isAuthenticated) {
       setShowAuthDialog(true);
@@ -255,16 +258,18 @@ export function FreelancerDetailSheet({
           </ScrollArea>
 
           {/* Action Button */}
-          <div className="px-6 py-4 border-t bg-background">
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleSendMessage}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Send Message
-            </Button>
-          </div>
+          {!isOwnProfile && (
+            <div className="px-6 py-4 border-t bg-background">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSendMessage}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Send Message
+              </Button>
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>
