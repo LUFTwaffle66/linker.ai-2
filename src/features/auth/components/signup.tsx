@@ -2,15 +2,17 @@
 
 import { useState } from 'react';
 import { useRouter, Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Bot, Briefcase, CheckCircle, User, Mail, Lock, Building } from 'lucide-react';
+import { Bot, Briefcase, CheckCircle, User, Mail, Lock, Building, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LanguageSwitcherCompact } from '@/components/language-switcher-compact';
 import {
   Form,
   FormControl,
@@ -32,7 +34,10 @@ interface SignupProps {
 
 export function Signup({ onNavigate, onSignup }: SignupProps) {
   const router = useRouter();
+  const t = useTranslations('auth');
   const [activeTab, setActiveTab] = useState<UserType>('freelancer');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Use appropriate schema based on user type
   const form = useForm<SignupFormData | ClientSignupFormData>({
@@ -85,21 +90,8 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
     }
   };
 
-  const freelancerBenefits = [
-    'Connect with global clients seeking AI expertise',
-    'Set your own rates and work schedule',
-    'Secure payments with escrow protection',
-    'Build your portfolio and reputation',
-    'Access to exclusive AI automation projects'
-  ];
-
-  const clientBenefits = [
-    'Access to vetted AI automation experts',
-    'Post unlimited projects for free',
-    'Secure 50/50 payment with escrow protection',
-    'Real-time collaboration tools',
-    'Dedicated project management support'
-  ];
+  const freelancerBenefits = t.raw('signup.benefits.freelancer.items') as string[];
+  const clientBenefits = t.raw('signup.benefits.client.items') as string[];
 
   // Reset form when switching tabs
   const handleTabChange = (value: string) => {
@@ -109,14 +101,19 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-cyan-500/5 flex items-center justify-center px-4 py-8">
+      {/* Language Switcher - Top Right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcherCompact />
+      </div>
+
       <div className="max-w-6xl mx-auto w-full">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
             <span className="text-white text-2xl font-bold">L</span>
           </div>
-          <h1 className="text-3xl mb-2">Join LinkerAI</h1>
-          <p className="text-muted-foreground">Start your AI automation journey today</p>
+          <h1 className="text-3xl mb-2">{t('signup.title')}</h1>
+          <p className="text-muted-foreground">{t('signup.subtitle')}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -128,12 +125,12 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                   {activeTab === 'freelancer' ? (
                     <>
                       <Bot className="w-5 h-5 text-primary" />
-                      <span>AI Expert Benefits</span>
+                      <span>{t('signup.benefits.freelancer.title')}</span>
                     </>
                   ) : (
                     <>
                       <Briefcase className="w-5 h-5 text-primary" />
-                      <span>Client Benefits</span>
+                      <span>{t('signup.benefits.client.title')}</span>
                     </>
                   )}
                 </CardTitle>
@@ -170,11 +167,11 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="freelancer" className="flex items-center gap-2">
                       <Bot className="w-4 h-4" />
-                      <span>AI Expert</span>
+                      <span>{t('signup.freelancerTab')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="client" className="flex items-center gap-2">
                       <Briefcase className="w-4 h-4" />
-                      <span>Client</span>
+                      <span>{t('signup.clientTab')}</span>
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -190,7 +187,7 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
-                              {activeTab === 'freelancer' ? 'Full Name' : 'Contact Name'} *
+                              {t('common.fullName')} *
                             </FormLabel>
                             <FormControl>
                               <div className="relative">
@@ -214,7 +211,7 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                           name="companyName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Company Name *</FormLabel>
+                              <FormLabel>{t('common.companyName')} *</FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -238,7 +235,7 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email Address *</FormLabel>
+                          <FormLabel>{t('common.email')} *</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -261,16 +258,28 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                         name="password"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Password *</FormLabel>
+                            <FormLabel>{t('common.password')} *</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                                 <Input
-                                  type="password"
+                                  type={showPassword ? "text" : "password"}
                                   placeholder="Min. 8 characters"
-                                  className="pl-10"
+                                  className="pl-10 pr-10"
                                   {...field}
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                  aria-label={showPassword ? t('common.hidePassword') : t('common.showPassword')}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
+                                </button>
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -283,16 +292,28 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                         name="confirmPassword"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirm Password *</FormLabel>
+                            <FormLabel>{t('common.confirmPassword')} *</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                                 <Input
-                                  type="password"
+                                  type={showConfirmPassword ? "text" : "password"}
                                   placeholder="Re-enter password"
-                                  className="pl-10"
+                                  className="pl-10 pr-10"
                                   {...field}
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                  aria-label={showConfirmPassword ? t('common.hidePassword') : t('common.showPassword')}
+                                >
+                                  {showConfirmPassword ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
+                                </button>
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -316,15 +337,15 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                             </FormControl>
                             <div className="flex-1">
                               <FormLabel className="text-sm leading-relaxed font-normal cursor-pointer flex-wrap">
-                                I agree to the{' '}
+                                {t('signup.agreeToTerms')}{' '}
                                 <Link href={paths.public.terms.getHref()} className="text-primary hover:underline">
-                                  Terms of Service
+                                  {t('signup.termsOfService')}
                                 </Link>
-                                {' '}and{' '}
+                                {' '}{t('signup.and')}{' '}
                                 <Link href={paths.public.privacy.getHref()} className="text-primary hover:underline">
-                                  Privacy Policy
+                                  {t('signup.privacyPolicy')}
                                 </Link>
-                                . I understand that LinkerAI is not meant for collecting PII or securing sensitive data.
+                                .
                               </FormLabel>
                             </div>
                           </div>
@@ -339,19 +360,19 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
                       size="lg"
                       disabled={signupMutation.isPending}
                     >
-                      {signupMutation.isPending ? 'Creating Account...' : 'Create Account'}
+                      {signupMutation.isPending ? t('signup.creatingAccount') : t('signup.createAccountButton')}
                     </Button>
                   </form>
                 </Form>
 
                 <div className="text-center text-sm">
-                  <span className="text-muted-foreground">Already have an account? </span>
+                  <span className="text-muted-foreground">{t('signup.hasAccount')} </span>
                   <button
                     type="button"
                     onClick={handleLoginClick}
                     className="text-primary hover:underline font-medium"
                   >
-                    Log in
+                    {t('signup.loginLink')}
                   </button>
                 </div>
               </CardContent>

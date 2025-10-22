@@ -11,15 +11,63 @@
     "search": "Search"
   },
   "auth": {
-    "login": "Login",
-    "register": "Register",
-    "logout": "Logout",
-    "email": "Email",
-    "password": "Password",
-    "confirmPassword": "Confirm Password",
-    "forgotPassword": "Forgot Password?",
-    "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?"
+    "common": {
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "fullName": "Full Name",
+      "companyName": "Company Name",
+      "forgotPassword": "Forgot Password?",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
+    },
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Sign in to LinkerAI to continue",
+      "rememberMe": "Remember me",
+      "signInButton": "Sign In",
+      "signingIn": "Signing in...",
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign up",
+      "freelancerTab": "AI Expert",
+      "clientTab": "Client"
+    },
+    "signup": {
+      "title": "Join LinkerAI",
+      "subtitle": "Start your AI automation journey today",
+      "createAccountButton": "Create Account",
+      "creatingAccount": "Creating account...",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Sign in",
+      "agreeToTerms": "I agree to the",
+      "termsOfService": "Terms of Service",
+      "and": "and",
+      "privacyPolicy": "Privacy Policy",
+      "freelancerTab": "AI Expert",
+      "clientTab": "Client",
+      "benefits": {
+        "freelancer": {
+          "title": "AI Expert Benefits",
+          "items": [
+            "Connect with global clients seeking AI expertise",
+            "Set your own rates and work schedule",
+            "Secure payments with escrow protection",
+            "Build your portfolio and reputation",
+            "Access to exclusive AI automation projects"
+          ]
+        },
+        "client": {
+          "title": "Client Benefits",
+          "items": [
+            "Access to vetted AI automation experts",
+            "Post unlimited projects for free",
+            "Secure 50/50 payment with escrow protection",
+            "Real-time collaboration tools",
+            "Dedicated project management support"
+          ]
+        }
+      }
+    }
   },
   "discussions": {
     "title": "Discussions",
@@ -34,5 +82,14 @@
     "profile": "Profile",
     "editProfile": "Edit Profile",
     "noUsers": "No users found"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "subtitle": "Oops! The page you're looking for doesn't exist or has been moved.",
+    "helpfulLinks": "Here are some helpful links:",
+    "goToDashboard": "Go to Dashboard",
+    "browseProjects": "Browse Projects & Freelancers",
+    "getHelp": "Get Help",
+    "goBack": "Go Back"
   }
 }

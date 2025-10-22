@@ -11,15 +11,63 @@
     "search": "Rechercher"
   },
   "auth": {
-    "login": "Connexion",
-    "register": "S'inscrire",
-    "logout": "Déconnexion",
-    "email": "E-mail",
-    "password": "Mot de passe",
-    "confirmPassword": "Confirmer le mot de passe",
-    "forgotPassword": "Mot de passe oublié?",
-    "noAccount": "Vous n'avez pas de compte?",
-    "hasAccount": "Vous avez déjà un compte?"
+    "common": {
+      "email": "E-mail",
+      "password": "Mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "fullName": "Nom complet",
+      "companyName": "Nom de l'entreprise",
+      "forgotPassword": "Mot de passe oublié?",
+      "showPassword": "Afficher le mot de passe",
+      "hidePassword": "Masquer le mot de passe"
+    },
+    "login": {
+      "title": "Bon Retour",
+      "subtitle": "Connectez-vous à LinkerAI pour continuer",
+      "rememberMe": "Se souvenir de moi",
+      "signInButton": "Se Connecter",
+      "signingIn": "Connexion en cours...",
+      "noAccount": "Vous n'avez pas de compte?",
+      "signUpLink": "S'inscrire",
+      "freelancerTab": "Expert IA",
+      "clientTab": "Client"
+    },
+    "signup": {
+      "title": "Rejoignez LinkerAI",
+      "subtitle": "Commencez votre parcours d'automatisation IA aujourd'hui",
+      "createAccountButton": "Créer un Compte",
+      "creatingAccount": "Création du compte...",
+      "hasAccount": "Vous avez déjà un compte?",
+      "loginLink": "Se connecter",
+      "agreeToTerms": "J'accepte les",
+      "termsOfService": "Conditions d'utilisation",
+      "and": "et la",
+      "privacyPolicy": "Politique de confidentialité",
+      "freelancerTab": "Expert IA",
+      "clientTab": "Client",
+      "benefits": {
+        "freelancer": {
+          "title": "Avantages Expert IA",
+          "items": [
+            "Connectez-vous avec des clients mondiaux recherchant une expertise en IA",
+            "Fixez vos propres tarifs et horaires de travail",
+            "Paiements sécurisés avec protection par dépôt fiduciaire",
+            "Construisez votre portfolio et votre réputation",
+            "Accès à des projets exclusifs d'automatisation IA"
+          ]
+        },
+        "client": {
+          "title": "Avantages Client",
+          "items": [
+            "Accès à des experts en automatisation IA vérifiés",
+            "Publiez des projets illimités gratuitement",
+            "Paiement sécurisé 50/50 avec protection par dépôt fiduciaire",
+            "Outils de collaboration en temps réel",
+            "Support dédié de gestion de projet"
+          ]
+        }
+      }
+    }
   },
   "discussions": {
     "title": "Discussions",
@@ -34,5 +82,14 @@
     "profile": "Profil",
     "editProfile": "Modifier le profil",
     "noUsers": "Aucun utilisateur trouvé"
+  },
+  "notFound": {
+    "title": "Page Non Trouvée",
+    "subtitle": "Oups! La page que vous recherchez n'existe pas ou a été déplacée.",
+    "helpfulLinks": "Voici quelques liens utiles:",
+    "goToDashboard": "Aller au Tableau de Bord",
+    "browseProjects": "Parcourir Projets et Freelances",
+    "getHelp": "Obtenir de l'Aide",
+    "goBack": "Retour"
   }
 }
