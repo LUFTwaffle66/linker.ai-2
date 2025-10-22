@@ -1,17 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMessages, sendMessage, markAsRead } from '../api/messaging';
-import type { SendMessageFormData } from '../types';
 import { messagingKeys } from './use-conversations';
+import { useAuth } from '@/features/auth/lib/auth-client';
 
 /**
  * Hook to fetch messages for a conversation
  * @param conversationId - The conversation ID
  */
 export function useMessages(conversationId: string | null) {
+  const { user } = useAuth();
+
   return useQuery({
     queryKey: messagingKeys.messages(conversationId || ''),
-    queryFn: () => getMessages(conversationId!),
-    enabled: !!conversationId,
+    queryFn: () => {
+      if (!conversationId || !user?.id) throw new Error('Missing conversation ID or user ID');
+      return getMessages(conversationId, user.id);
+    },
+    enabled: !!conversationId && !!user?.id,
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -22,9 +27,13 @@ export function useMessages(conversationId: string | null) {
  */
 export function useSendMessage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: (data: SendMessageFormData) => sendMessage(data),
+    mutationFn: ({ conversationId, content }: { conversationId: string; content: string }) => {
+      if (!user?.id) throw new Error('User not authenticated');
+      return sendMessage(conversationId, user.id, content);
+    },
     onSuccess: (newMessage) => {
       // Add the new message to the messages cache
       queryClient.setQueryData(
@@ -53,9 +62,13 @@ export function useSendMessage() {
  */
 export function useMarkAsRead() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: (conversationId: string) => markAsRead(conversationId),
+    mutationFn: (conversationId: string) => {
+      if (!user?.id) throw new Error('User not authenticated');
+      return markAsRead(conversationId, user.id);
+    },
     onSuccess: (_, conversationId) => {
       // Update messages cache
       queryClient.invalidateQueries({

@@ -62,12 +62,14 @@ export function useUpdateConversationSettings() {
       conversationId: string;
       settings: Partial<ConversationSettings>;
     }) => updateConversationSettings(conversationId, settings),
-    onSuccess: (updatedConversation) => {
+    onSuccess: (updatedConversation: any) => {
       // Update the specific conversation in cache
-      queryClient.setQueryData(
-        messagingKeys.conversation(updatedConversation.id),
-        updatedConversation
-      );
+      if (updatedConversation?.id) {
+        queryClient.setQueryData(
+          messagingKeys.conversation(updatedConversation.id),
+          updatedConversation
+        );
+      }
 
       // Invalidate the conversations list to reflect changes
       queryClient.invalidateQueries({

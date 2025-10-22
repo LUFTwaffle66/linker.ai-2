@@ -52,7 +52,6 @@ export function ProjectCard({ project, onClick, className }: ProjectCardProps) {
               </Badge>
             )}
           </div>
-          <Heart
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">

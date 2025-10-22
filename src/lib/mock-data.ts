@@ -1,4 +1,4 @@
-import { Project, Expert } from '@/types/browse';
+import type { Project, Expert } from '@/types/browse';
 
 export const MOCK_PROJECTS: Project[] = [
   {
