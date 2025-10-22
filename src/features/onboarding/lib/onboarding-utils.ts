@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ClientOnboardingData,
   FreelancerOnboardingData,
@@ -27,6 +27,7 @@ export interface ClientProfile {
 }
 
 export async function createClientProfile(
+  supabase: SupabaseClient,
   userId: string,
   data: ClientOnboardingData
 ): Promise<ClientProfile> {
@@ -57,6 +58,7 @@ export async function createClientProfile(
 }
 
 export async function updateClientProfile(
+  supabase: SupabaseClient,
   userId: string,
   data: Partial<ClientOnboardingData>
 ): Promise<ClientProfile> {
@@ -87,7 +89,10 @@ export async function updateClientProfile(
   return profile;
 }
 
-export async function getClientProfile(userId: string): Promise<ClientProfile | null> {
+export async function getClientProfile(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<ClientProfile | null> {
   const { data: profile, error } = await supabase
     .from('client_profiles')
     .select('*')
@@ -118,6 +123,13 @@ export interface PortfolioItem {
   url?: string;
 }
 
+export interface WorkExperience {
+  position: string;
+  company: string;
+  period: string;
+  description: string;
+}
+
 export interface FreelancerProfile {
   id: string;
   user_id: string;
@@ -127,12 +139,8 @@ export interface FreelancerProfile {
   bio?: string;
   experience?: number;
   skills?: string[];
-  portfolio?: PortfolioItem[]; // New JSONB array field
-  // Old single-item fields (kept for backward compatibility)
-  portfolio_title?: string;
-  portfolio_description?: string;
-  portfolio_tags?: string[];
-  portfolio_image?: string;
+  portfolio?: PortfolioItem[]; // JSONB array field
+  work_experience?: WorkExperience[]; // JSONB array field
   hourly_rate?: number;
   onboarding_completed: boolean;
   created_at: string;
@@ -140,6 +148,7 @@ export interface FreelancerProfile {
 }
 
 export async function createFreelancerProfile(
+  supabase: SupabaseClient,
   userId: string,
   data: FreelancerOnboardingData
 ): Promise<FreelancerProfile> {
@@ -179,10 +188,6 @@ export async function createFreelancerProfile(
       experience: parseInt(data.experience),
       skills: data.skills,
       portfolio: portfolioData.length > 0 ? portfolioData : [],
-      // Still save to old columns for backward compatibility
-      portfolio_title: data.portfolioTitle || null,
-      portfolio_description: data.portfolioDescription || null,
-      portfolio_tags: data.portfolioTags || null,
       hourly_rate: parseFloat(data.hourlyRate),
       onboarding_completed: true,
     })
@@ -197,6 +202,7 @@ export async function createFreelancerProfile(
 }
 
 export async function updateFreelancerProfile(
+  supabase: SupabaseClient,
   userId: string,
   data: Partial<FreelancerOnboardingData>
 ): Promise<FreelancerProfile> {
@@ -221,23 +227,16 @@ export async function updateFreelancerProfile(
       imageUrl: item.imageUrl || undefined,
       url: item.url || undefined,
     }));
-  } else if (data.portfolioTitle !== undefined || data.portfolioDescription !== undefined) {
-    // Old format: update single portfolio item (backward compatibility)
-    if (data.portfolioTitle !== undefined) updateData.portfolio_title = data.portfolioTitle;
-    if (data.portfolioDescription !== undefined) updateData.portfolio_description = data.portfolioDescription;
-    if (data.portfolioTags !== undefined) updateData.portfolio_tags = data.portfolioTags;
-
-    // Also update the new portfolio array if we have enough data
-    if (data.portfolioTitle && data.portfolioDescription) {
-      updateData.portfolio = [{
-        id: crypto.randomUUID(),
-        title: data.portfolioTitle,
-        description: data.portfolioDescription,
-        tags: data.portfolioTags || [],
-        imageUrl: undefined,
-        url: undefined,
-      }];
-    }
+  } else if (data.portfolioTitle !== undefined && data.portfolioDescription !== undefined) {
+    // Old format: convert single portfolio item to array format
+    updateData.portfolio = [{
+      id: crypto.randomUUID(),
+      title: data.portfolioTitle,
+      description: data.portfolioDescription,
+      tags: data.portfolioTags || [],
+      imageUrl: undefined,
+      url: undefined,
+    }];
   }
 
   const { data: profile, error } = await supabase
@@ -254,7 +253,10 @@ export async function updateFreelancerProfile(
   return profile;
 }
 
-export async function getFreelancerProfile(userId: string): Promise<FreelancerProfile | null> {
+export async function getFreelancerProfile(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<FreelancerProfile | null> {
   const { data: profile, error } = await supabase
     .from('freelancer_profiles')
     .select('*')

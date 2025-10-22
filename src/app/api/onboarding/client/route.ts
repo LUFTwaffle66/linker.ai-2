@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRouteHandlerUser } from '@/lib/supabase/route-handler';
+import { getRouteHandlerUser, createRouteHandlerClient } from '@/lib/supabase/route-handler';
 import {
   createClientProfile,
   updateClientProfile,
@@ -42,16 +42,19 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
+    // Create authenticated Supabase client
+    const supabase = await createRouteHandlerClient();
+
     // Check if profile already exists
-    const existingProfile = await getClientProfile(user.id);
+    const existingProfile = await getClientProfile(supabase, user.id);
 
     let profile;
     if (existingProfile) {
       // Update existing profile
-      profile = await updateClientProfile(user.id, data);
+      profile = await updateClientProfile(supabase, user.id, data);
     } else {
       // Create new profile
-      profile = await createClientProfile(user.id, data);
+      profile = await createClientProfile(supabase, user.id, data);
     }
 
     return NextResponse.json(
@@ -92,7 +95,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const profile = await getClientProfile(user.id);
+    // Create authenticated Supabase client
+    const supabase = await createRouteHandlerClient();
+
+    const profile = await getClientProfile(supabase, user.id);
 
     if (!profile) {
       return NextResponse.json(
