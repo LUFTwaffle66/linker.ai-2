@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/features/auth/lib/auth-client';
-import { User, Wallet, Settings, LogOut, Moon } from 'lucide-react';
+import { User, Wallet, Settings, LogOut, Moon, LayoutDashboard } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -84,6 +84,11 @@ export function ProfileDropdown() {
         <DropdownMenuSeparator />
 
         {/* Menu Items */}
+        <DropdownMenuItem className="cursor-pointer" onClick={() => router.push(paths.app.dashboard.getHref())}>
+          <LayoutDashboard className="w-4 h-4 mr-3" />
+          Dashboard
+        </DropdownMenuItem>
+
         <DropdownMenuItem
           className="cursor-pointer"
           onClick={() => {

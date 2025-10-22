@@ -9,7 +9,7 @@ import { Form } from '@/components/ui/form';
 import { paths } from '@/config/paths';
 import { proposalSchema, type ProposalFormData } from '../types';
 import { useCreateProposal } from '../hooks/use-proposals';
-import type { Project } from '@/types/browse';
+import type { ProjectWithClient } from '@/features/projects/api/projects';
 import {
   CoverLetterSection,
   BudgetTimelineSection,
@@ -22,28 +22,9 @@ import {
 } from './submit-proposal';
 
 interface SubmitProposalFormProps {
-  project?: Project;
+  project: ProjectWithClient; // Must provide real project data from database
   onProposalSubmitted?: () => void;
 }
-
-// Default mock project data - used when no project prop is provided
-const DEFAULT_PROJECT: Project = {
-  id: 1,
-  title: 'AI Chatbot for E-commerce Support',
-  category: 'AI Chatbot',
-  budget: '$8,000 - $12,000',
-  timeline: '3-4 weeks',
-  description: 'Need an AI-powered chatbot using GPT-4 to handle customer support inquiries for our e-commerce platform. Must integrate with our existing CRM and handle 1000+ daily queries.',
-  skills: ['GPT-4', 'Python', 'API Integration', 'Natural Language Processing'],
-  postedDate: '2 days ago',
-  proposals: 12,
-  client: {
-    name: 'ShopHub Inc',
-    rating: 4.9,
-    verified: true,
-    spent: '$45K+',
-  },
-};
 
 const FORM_DEFAULT_VALUES: ProposalFormData = {
   coverLetter: '',
@@ -52,12 +33,10 @@ const FORM_DEFAULT_VALUES: ProposalFormData = {
   attachments: [],
 };
 
-export function SubmitProposalForm({ project: propProject, onProposalSubmitted }: SubmitProposalFormProps) {
+export function SubmitProposalForm({ project, onProposalSubmitted }: SubmitProposalFormProps) {
   const router = useRouter();
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
-
-  const project = propProject || DEFAULT_PROJECT;
 
   const form = useForm({
     resolver: zodResolver(proposalSchema),
@@ -82,11 +61,8 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
 
   const onSubmit = async (data: ProposalFormData) => {
     try {
-      // Convert project.id to string if it's a number
-      const projectId = typeof project.id === 'number' ? String(project.id) : project.id;
-
       await createProposalMutation.mutateAsync({
-        projectId,
+        projectId: project.id,
         coverLetter: data.coverLetter,
         totalBudget: data.totalBudget,
         timeline: data.timeline,
@@ -136,7 +112,7 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
 
                 <BudgetTimelineSection
                   control={form.control}
-                  projectBudget={project.budget}
+                  projectBudget={`$${project.fixed_budget.toLocaleString()}`}
                   projectTimeline={project.timeline}
                 />
 
@@ -162,8 +138,13 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
               <aside className="space-y-6">
                 <ProjectOverviewCard project={project} />
                 <ClientInfoCard
-                  client={project.client}
-                  proposalCount={project.proposals}
+                  client={{
+                    name: project.client.company_name || project.client.full_name,
+                    rating: 4.8, // TODO: Add rating to database
+                    verified: true,
+                    spent: '$0', // TODO: Calculate total spent
+                  }}
+                  proposalCount={project.proposal_count}
                 />
                 <TipsCard />
               </aside>
@@ -177,7 +158,7 @@ export function SubmitProposalForm({ project: propProject, onProposalSubmitted }
         open={showSuccessDialog}
         onOpenChange={setShowSuccessDialog}
         projectTitle={project.title}
-        clientName={project.client.name}
+        clientName={project.client.company_name || project.client.full_name}
         onBrowseMore={handleSuccessClose}
         onViewProposals={handleViewProposals}
       />

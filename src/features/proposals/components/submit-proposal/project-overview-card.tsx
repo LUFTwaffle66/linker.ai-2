@@ -2,13 +2,18 @@ import { DollarSign, Clock, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import type { Project } from '@/types/browse';
+import type { ProjectWithClient } from '@/features/projects/api/projects';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ProjectOverviewCardProps {
-  project: Project;
+  project: ProjectWithClient;
 }
 
 export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
+  const postedDate = formatDistanceToNow(new Date(project.created_at), {
+    addSuffix: true,
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -25,7 +30,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
         <div className="space-y-3 text-sm">
           <ProjectDetail
             icon={<DollarSign className="w-4 h-4" />}
-            text={project.budget}
+            text={`$${project.fixed_budget.toLocaleString()}`}
           />
           <ProjectDetail
             icon={<Clock className="w-4 h-4" />}
@@ -33,7 +38,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
           />
           <ProjectDetail
             icon={<Calendar className="w-4 h-4" />}
-            text={`Posted ${project.postedDate}`}
+            text={`Posted ${postedDate}`}
           />
         </div>
 

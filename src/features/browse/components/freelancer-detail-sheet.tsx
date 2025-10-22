@@ -257,19 +257,31 @@ export function FreelancerDetailSheet({
             </div>
           </ScrollArea>
 
-          {/* Action Button */}
-          {!isOwnProfile && (
-            <div className="px-6 py-4 border-t bg-background">
+          {/* Action Buttons */}
+          <div className="px-6 py-4 border-t bg-background">
+            <div className="flex flex-col gap-3">
+              {!isOwnProfile && (
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleSendMessage}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Send Message
+                </Button>
+              )}
               <Button
+                variant="outline"
                 className="w-full"
                 size="lg"
-                onClick={handleSendMessage}
+                onClick={() => {
+                  router.push(paths.app.freelancerProfile.getHref(freelancer.user_id));
+                }}
               >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Send Message
+                View Full Profile
               </Button>
             </div>
-          )}
+          </div>
         </div>
       </SheetContent>
     </Sheet>

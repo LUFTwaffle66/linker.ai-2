@@ -64,7 +64,7 @@ export const paths = {
       getHref: () => '/',
     },
     dashboard: {
-      getHref: () => '/',
+      getHref: () => '/dashboard',
     },
     discussions: {
       getHref: () => '/discussions',
@@ -89,6 +89,18 @@ export const paths = {
     },
     settings: {
       getHref: () => '/settings',
+    },
+    projects: {
+      getHref: () => '/projects',
+    },
+    projectDetail: {
+      getHref: (projectId: string) => `/projects/${projectId}`,
+    },
+    proposals: {
+      getHref: () => '/proposals',
+    },
+    browseProjects: {
+      getHref: () => '/browse?tab=projects',
     },
     freelancerProfile: {
       getHref: (freelancerId: string) => `/freelancer/${freelancerId}`,
