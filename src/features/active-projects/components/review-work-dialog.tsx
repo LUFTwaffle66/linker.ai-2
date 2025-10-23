@@ -56,9 +56,9 @@ export function ReviewWorkDialog({ deliverable, open, onOpenChange }: ReviewWork
   const onSubmit = async (data: ReviewWorkFormData) => {
     try {
       await reviewDeliverableMutation.mutateAsync({
-        deliverable_id: deliverable.id,
+        deliverableId: deliverable.id,
         status: data.decision === 'approve' ? 'approved' : 'revision_requested',
-        review_feedback: data.feedback,
+        feedback: data.feedback,
       });
 
       // Reset form and close dialog
