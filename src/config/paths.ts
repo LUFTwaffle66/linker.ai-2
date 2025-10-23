@@ -12,6 +12,9 @@ export const paths = {
       getHref: (redirectTo?: string | null | undefined) =>
         `/login${redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`,
     },
+    verifyEmail: {
+      getHref: () => '/verify-email',
+    },
     onboardingClient: {
       getHref: () => '/onboarding/client',
     },
