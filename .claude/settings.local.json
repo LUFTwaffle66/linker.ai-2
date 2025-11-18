@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(pnpm add:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(wc -l /Users/devanshtiwari/github/linkerai/src/**/*.{ts,tsx})",
+      "Bash(pnpm typecheck)",
+      "Bash(find /Users/devanshtiwari/github/linkerai/src/app/[locale]/(protected) -name \"layout.tsx\" -o -name \"layout.ts\")",
+      "Bash(test -d /Users/devanshtiwari/github/linkerai/src/types)",
+      "Bash(supabase db push)",
+      "Bash(test -f .env)",
+      "Bash(supabase link --project-ref bbsnmeehcyzewyhqvcrs)",
+      "Bash(supabase link --project-ref bbsnmeehcyzewyhqvcrs --debug)",
+      "Bash(supabase login)",
+      "Bash(test -d /Users/devanshtiwari/github/linkerai/src/app/api/onboarding)",
+      "Bash(supabase status)",
+      "Bash(cat supabase/migrations/003_add_work_experience.sql)",
+      "Bash(test -f /Users/devanshtiwari/github/linkerai/src/features/profiles/hooks/index.ts)",
+      "Bash(npx tsc --noEmit --pretty false)",
+      "Bash(pnpm remove:*)",
+      "Bash(cat:*)",
+      "Bash(test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

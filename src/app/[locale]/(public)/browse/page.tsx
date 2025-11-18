@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { Search, Filter } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SearchInput } from '@/components/search';
+import { useDebounce } from '@/hooks/use-debounce';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -56,6 +57,9 @@ export default function BrowsePage() {
   const [freelancersPage, setFreelancersPage] = useState(1);
   const [selectedProject, setSelectedProject] = useState<BrowseProject | null>(null);
   const [selectedFreelancer, setSelectedFreelancer] = useState<BrowseFreelancer | null>(null);
+
+  // Debounce search query for instant search
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Filters state
   const [projectFilters, setProjectFilters] = useState<BrowseFilters>({});
@@ -112,15 +116,28 @@ export default function BrowsePage() {
     router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
   };
 
-  // Handle search
+  // Handle search button click (instant search already handles debounced updates)
   const handleSearch = () => {
-    if (activeTab === 'projects') {
-      setProjectFilters({ ...projectFilters, search: searchQuery });
-    } else {
-      setFreelancerFilters({ ...freelancerFilters, search: searchQuery });
-    }
+    // This triggers immediate search by updating URL
+    // The instant search effect will handle the API call
     updateURL({ tab: activeTab, q: searchQuery });
   };
+
+  // Instant search: Trigger search when debounced query changes
+  useEffect(() => {
+    if (activeTab === 'projects') {
+      setProjectFilters((prev) => ({ ...prev, search: debouncedSearchQuery || undefined }));
+    } else {
+      setFreelancerFilters((prev) => ({ ...prev, search: debouncedSearchQuery || undefined }));
+    }
+
+    // Update URL with search query
+    if (debouncedSearchQuery) {
+      updateURL({ tab: activeTab, q: debouncedSearchQuery });
+    } else {
+      updateURL({ tab: activeTab, q: '' });
+    }
+  }, [debouncedSearchQuery, activeTab]);
 
   // Sync state with URL params on mount and param changes
   useEffect(() => {
@@ -181,23 +198,13 @@ export default function BrowsePage() {
 
           {/* Search Bar */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-              <Input
-                placeholder="Search projects, AI services, or experts..."
-                className="pl-10 h-12"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                  }
-                }}
-              />
-            </div>
-            <Button size="lg" className="h-12 px-8" onClick={handleSearch}>
-              Search
-            </Button>
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onSearch={handleSearch}
+              placeholder="Search projects, AI services, or experts..."
+              className="flex-1"
+            />
             <Button
               variant="outline"
               size="lg"

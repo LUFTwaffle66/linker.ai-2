@@ -98,9 +98,11 @@ export async function fetchBrowseProjects(filters?: BrowseFilters) {
   }
 
   if (filters?.search) {
-    query = query.or(
-      `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
-    );
+    // Use full-text search with typo tolerance
+    query = query.textSearch('search_vector', filters.search, {
+      type: 'websearch',
+      config: 'english',
+    });
   }
 
   query = query.order('created_at', { ascending: false });
@@ -174,9 +176,11 @@ export async function fetchBrowseFreelancers(filters?: FreelancerFilters) {
   }
 
   if (filters?.search) {
-    query = query.or(
-      `title.ilike.%${filters.search}%,bio.ilike.%${filters.search}%`
-    );
+    // Use full-text search with typo tolerance
+    query = query.textSearch('search_vector', filters.search, {
+      type: 'websearch',
+      config: 'english',
+    });
   }
 
   query = query.order('experience', { ascending: false });

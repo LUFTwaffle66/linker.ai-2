@@ -12,7 +12,7 @@
 DO $$
 DECLARE
   -- Your actual user (Devansh Tiwari)
-  freelancer_devansh UUID := 'c96cb8a9-c3db-42b1-88f8-07d77f657987';
+  freelancer_devansh UUID := 'bb08dda8-82c5-4389-8979-da54991f34fb';
 
   freelancer_sarah UUID := gen_random_uuid();
   freelancer_michael UUID := gen_random_uuid();
