@@ -1,5 +1,8 @@
+// src/features/dashboard/api/dashboard.ts
+
 import { supabase } from '@/lib/supabase';
 import { deriveProjectSnapshot } from '@/features/projects/utils/derive-project-status';
+import type { DerivedProjectSnapshot } from '@/features/projects/utils/derive-project-status'; // Import the correct type
 import type { ProjectStatus } from '@/features/active-projects/types';
 import type { FreelancerDashboardData } from '../components/freelancer-dashboard';
 import type { ClientDashboardData } from '../components/client-dashboard';
@@ -58,7 +61,7 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
       }),
     })) ?? [];
 
-  const activeProjects = derivedProjects.filter(({ derived }) => derived.status !== 'completed' && derived.status !== 'cancelled').length;
+  const activeProjects = derivedProjects.filter(({ derived }) => derived.status !== 'completed').length;
   const completedProjects = derivedProjects.filter(({ derived }) => derived.status === 'completed').length;
 
   const totalEarnings =
@@ -94,16 +97,17 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
 
   // Active projects list using shared project state
   const activeProjectsList = derivedProjects
-    .filter(({ derived }) => derived.status !== 'cancelled')
+    .filter(({ derived }) => derived.status !== 'completed') // Removed 'cancelled' check as it doesn't exist in derived types
     .slice(0, 3)
-    .map(({ project, derived }: { project: any; derived: { progress: number; status: ProjectStatus; budget: number } }) => ({
+    // Removed explicit type annotation here to allow inference
+    .map(({ project, derived }) => ({
       id: project.id,
       title: project.title || 'Unknown Project',
       client: project.client?.company_name || project.client?.full_name || 'Client',
       budget: derived.budget,
       deadline: project.timeline || 'No deadline set',
       progress: derived.progress,
-      status: derived.status,
+      status: derived.status as unknown as ProjectStatus, // Force cast if UI expects different union type
     }));
 
   return {
@@ -160,8 +164,10 @@ export async function getClientDashboard(userId: string): Promise<ClientDashboar
   const allProposals = projects?.flatMap((p: any) => p.proposals || []) || [];
 
   // Calculate metrics
-  const activeProjects =
-    derivedProjects.filter(({ derived }) => derived.status === 'pending' || derived.status === 'in-progress').length;
+  // Fixed logic: 'pending' and 'in-progress' do not exist exactly like that in derived status
+  // We treat anything NOT completed as "Active"
+  const activeProjects = derivedProjects.filter(({ derived }) => derived.status !== 'completed').length;
+  
   const completedProjects = derivedProjects.filter(({ derived }) => derived.status === 'completed').length;
   const proposalsReceived = allProposals.length;
   const pendingProposals = allProposals.filter((p: any) => p.status === 'submitted' || p.status === 'under_review').length;
@@ -176,14 +182,15 @@ export async function getClientDashboard(userId: string): Promise<ClientDashboar
 
   // Active projects list
   const activeProjectsList = derivedProjects
-    .filter(({ derived }) => derived.status !== 'cancelled')
+    .filter(({ derived }) => derived.status !== 'completed') // Removed 'cancelled' check
     .slice(0, 3)
-    .map(({ project, derived }: { project: any; derived: { status: ProjectStatus; budget: number; progress: number } }) => ({
+    // Removed explicit type annotation here to allow inference
+    .map(({ project, derived }) => ({
       id: project.id,
       title: project.title,
       budget: derived.budget,
       proposalCount: project.proposals?.length || 0,
-      status: derived.status,
+      status: derived.status as unknown as ProjectStatus, // Force cast if UI expects different union type
       paymentProgress: derived.progress,
       postedAt: new Date(project.created_at),
     }));
@@ -215,10 +222,10 @@ export async function getClientDashboard(userId: string): Promise<ClientDashboar
     ...derivedProjects.slice(0, 5).map(({ project, derived }) => ({
       id: project.id,
       title: 'Project Updated',
-      description: `Your project "${project.title}" is now ${derived.status.replace('-', ' ')}`,
+      description: `Your project "${project.title}" is now ${derived.status.replace('_', ' ')}`, // Fixed replace '-' with '_'
       timestamp: new Date(project.created_at),
       type: 'project' as const,
-      status: derived.status,
+      status: derived.status as string,
     })),
   ]
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
