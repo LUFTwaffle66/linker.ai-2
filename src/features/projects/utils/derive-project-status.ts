@@ -1,144 +1,137 @@
-import type { ProjectStatus } from '@/features/active-projects/types';
+// src/features/projects/utils/derive-project-status.ts
 
-type PaymentIntent = {
-  milestone_type?: string | null;
-  status?: string | null;
-  created_at?: string | null;
-};
-
-type PaymentTransaction = {
-  status?: string | null;
-  type?: string | null;
-  description?: string | null;
-  created_at?: string | null;
-  amount?: number | null;
-};
-
-type Deliverable = {
-  status?: string | null;
-};
-
-type Proposal = {
-  total_budget?: number | null;
-  status?: string | null;
-  freelancer_id?: string | null;
-};
-
-type ProjectRecord = {
+export type ProposalRow = {
   id: string;
-  status?: string | null;
-  fixed_budget?: number | null;
-  timeline?: string | null;
-  created_at?: string | null;
-  closed_at?: string | null;
-  upfront_date?: string | null;
-  final_date?: string | null;
-  hired_freelancer_id?: string | null;
+  freelancer_id: string;
+  status: 'pending' | 'accepted' | 'rejected' | string;
+  budget?: number | null;
 };
 
-export interface DerivedProjectSnapshot {
-  budget: number;
+export type ProjectRow = {
+  id: string;
+
+  // DB columns you mentioned you added
+  upfront_paid?: boolean | null;
+  final_paid?: boolean | null;
+  upfront_paid_date?: string | null;
+  final_paid_date?: string | null;
+
+  // optional fields used in matching logic
+  hired_freelancer_id?: string | null;
+
+  // budgeting
+  fixed_budget?: number | null;
+  budget?: number | null;
+
+  // progress is used in UI gating
+  progress?: number | null;
+};
+
+export type PaymentIntentRow = {
+  id: string;
+  stripe_payment_intent_id: string;
+  status: string;
+  milestone_type: 'upfront_50' | 'final_50' | string;
+  amount: number; // cents
+  platform_fee?: number | null; // cents
+  created_at?: string | null;
+};
+
+export type DerivedProjectSnapshot = {
+  // money (display in dollars)
+  totalBudget: number;
+  upfrontAmount: number;
+  finalAmount: number;
+
+  // state
   upfrontPaid: boolean;
-  upfrontDate?: string;
   finalPaid: boolean;
-  finalDate?: string;
-  progress: number;
-  status: ProjectStatus;
-  hasSubmission: boolean;
-}
 
-interface DeriveProjectParams {
-  project: ProjectRecord;
-  paymentIntents?: PaymentIntent[] | null;
-  paymentTransactions?: PaymentTransaction[] | null;
-  deliverables?: Deliverable[] | null;
-  proposals?: Proposal[] | null;
+  // optional dates for UI
+  upfrontDate?: string | null;
+  finalDate?: string | null;
+
+  // derived totals (in dollars)
+  received: number;
+  pending: number;
+
+  // helpful ids
+  acceptedProposalId?: string | null;
+
+  // for debugging / UI badges if needed
+  lastPaymentIntentStatus?: string | null;
+};
+
+export type DeriveProjectParams = {
+  project: ProjectRow;
+  proposals?: ProposalRow[] | null;
+  paymentIntents?: PaymentIntentRow[] | null;
   agreedBudgetOverride?: number | null;
-}
-
-const isSuccessfulPayment = (tx: PaymentTransaction) =>
-  tx.type === 'payment' && (tx.status === 'succeeded' || tx.status === 'completed');
+};
 
 /**
- * Derive a normalized view of project payment + status state.
- * This keeps dashboards and project detail views in sync.
+ * Derives a stable snapshot used by UI, without relying on "escrow language".
+ * - Null-safe
+ * - No implicit any
+ * - Always returns a value
  */
-export const deriveProjectSnapshot = ({
+export function deriveProjectStatus({
   project,
-  paymentIntents = [],
-  paymentTransactions = [],
-  deliverables = [],
-  proposals = [],
+  proposals,
+  paymentIntents,
   agreedBudgetOverride,
-}: DeriveProjectParams): DerivedProjectSnapshot => {
-  const acceptedProposal = proposals.find(
-    (proposal) =>
-      proposal.status === 'accepted' ||
-      (!!project.hired_freelancer_id && proposal.freelancer_id === project.hired_freelancer_id)
+}: DeriveProjectParams): DerivedProjectSnapshot {
+  const safeProposals: ProposalRow[] = proposals ?? [];
+  const safePaymentIntents: PaymentIntentRow[] = paymentIntents ?? [];
+
+  const acceptedProposal = safeProposals.find(
+    (p: ProposalRow) =>
+      p.status === 'accepted' ||
+      (!!project.hired_freelancer_id && p.freelancer_id === project.hired_freelancer_id)
   );
 
-  const budget = Number(
-    agreedBudgetOverride ??
-      acceptedProposal?.total_budget ??
-      project.fixed_budget ??
-      0
-  );
+  // Budget resolution priority:
+  // 1) agreedBudgetOverride (explicit)
+  // 2) accepted proposal budget
+  // 3) project.fixed_budget / project.budget
+  const totalBudget =
+    Number(agreedBudgetOverride ?? acceptedProposal?.budget ?? project.fixed_budget ?? project.budget ?? 0) || 0;
 
-  const successfulTransactions = paymentTransactions.filter(isSuccessfulPayment);
-  const upfrontTransaction = successfulTransactions.find((tx) =>
-    tx.description?.includes('upfront_50')
-  );
-  const finalTransaction = successfulTransactions.find((tx) =>
-    tx.description?.includes('final_50')
-  );
+  // 50/50 split with rounding safety
+  const upfrontAmount = Math.round(totalBudget * 0.5 * 100) / 100;
+  const finalAmount = Math.round((totalBudget - upfrontAmount) * 100) / 100;
 
-  const upfrontIntent =
-    paymentIntents.find((pi) => pi.milestone_type === 'upfront_50') ?? null;
-  const finalIntent =
-    paymentIntents.find((pi) => pi.milestone_type === 'final_50') ?? null;
+  const upfrontPaid = Boolean(project.upfront_paid);
+  const finalPaid = Boolean(project.final_paid);
 
-  const upfrontPaid = Boolean(upfrontTransaction || finalTransaction) || upfrontIntent?.status === 'succeeded';
-  const finalPaid =
-    Boolean(finalTransaction) || finalIntent?.status === 'succeeded' || project.status === 'completed';
+  // Derive received/pending in milestone model (not escrow)
+  const received = (upfrontPaid ? upfrontAmount : 0) + (finalPaid ? finalAmount : 0);
+  const pending = Math.max(totalBudget - received, 0);
 
-  const hasSubmission = (deliverables?.length ?? 0) > 0;
-
-  const progress =
-    project.status === 'completed' || finalPaid
-      ? 100
-      : project.status === 'in_progress' && hasSubmission
-      ? 90
-      : upfrontPaid
-      ? 50
-      : 0;
-
-  let status: ProjectStatus = 'pending';
-  if (project.status === 'completed') {
-    status = 'completed';
-  } else if (project.status === 'in_progress') {
-    status = 'in-progress';
-  } else if (project.status === 'cancelled') {
-    status = 'cancelled';
-  }
+  // Optional: last PI status for debugging/labels
+  const lastPi = safePaymentIntents
+    .slice()
+    .sort((a: PaymentIntentRow, b: PaymentIntentRow) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    })[0];
 
   return {
-    budget,
+    totalBudget,
+    upfrontAmount,
+    finalAmount,
+
     upfrontPaid,
-    upfrontDate:
-      upfrontTransaction?.created_at ||
-      upfrontIntent?.created_at ||
-      project.upfront_date ||
-      project.created_at ||
-      undefined,
     finalPaid,
-    finalDate:
-      finalTransaction?.created_at ||
-      finalIntent?.created_at ||
-      project.final_date ||
-      project.closed_at ||
-      undefined,
-    progress,
-    status,
-    hasSubmission,
+
+    upfrontDate: project.upfront_paid_date ?? null,
+    finalDate: project.final_paid_date ?? null,
+
+    received,
+    pending,
+
+    acceptedProposalId: acceptedProposal?.id ?? null,
+    lastPaymentIntentStatus: lastPi?.status ?? null,
   };
-};
+}
