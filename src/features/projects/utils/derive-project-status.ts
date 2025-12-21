@@ -135,3 +135,5 @@ export function deriveProjectStatus({
     lastPaymentIntentStatus: lastPi?.status ?? null,
   };
 }
+
+export const deriveProjectSnapshot = deriveProjectStatus;
