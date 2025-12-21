@@ -7,17 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Send } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { useSendMessage } from '../hooks';
 import { sendMessageSchema, type SendMessageFormData } from '../types';
 
 interface MessageInputProps {
   conversationId: string;
-  currentUserId: string;
+  onSendMessage: (content: string) => Promise<void>;
 }
 
-export function MessageInput({ conversationId, currentUserId }: MessageInputProps) {
+export function MessageInput({ conversationId, onSendMessage }: MessageInputProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const sendMessage = useSendMessage();
 
   const form = useForm<SendMessageFormData>({
     resolver: zodResolver(sendMessageSchema),
@@ -34,7 +32,7 @@ export function MessageInput({ conversationId, currentUserId }: MessageInputProp
     setIsSubmitting(true);
 
     try {
-      await sendMessage.mutateAsync({ ...data, senderId: currentUserId });
+      await onSendMessage(data.content);
       form.reset({ conversationId, content: '', attachments: [] });
     } catch (error) {
       console.error('Failed to send message:', error);

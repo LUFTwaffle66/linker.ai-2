@@ -3,24 +3,24 @@
 import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageBubble } from './message-bubble';
-import { useMessages } from '../hooks';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import type { Message } from '../types';
 
 interface MessageListProps {
   conversationId: string;
   currentUserId: string;
+  messages: Message[];
+  loading: boolean;
 }
 
-export function MessageList({ conversationId, currentUserId }: MessageListProps) {
-  const { data: messages, isLoading } = useMessages(conversationId, currentUserId);
+export function MessageList({ conversationId, currentUserId, messages, loading }: MessageListProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [conversationId, messages]);
 
 
   const getDateLabel = (date: Date): string => {
@@ -38,7 +38,7 @@ export function MessageList({ conversationId, currentUserId }: MessageListProps)
     return !isSameDay(currentDate, previousDate);
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-muted-foreground">Loading messages...</p>

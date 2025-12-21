@@ -5,6 +5,7 @@ import {
   sendMessage,
   createOrGetConversation,
 } from '../api/messaging';
+import { useChatMessages } from './use-chat-messages';
 
 export const messagingKeys = {
   all: ['messaging'] as const,
@@ -50,3 +51,5 @@ export function useCreateOrGetConversation() {
     },
   });
 }
+
+export { useChatMessages };

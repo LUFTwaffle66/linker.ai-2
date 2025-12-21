@@ -7,12 +7,14 @@ import { ChatHeader } from './chat-header';
 import { MessageList } from './message-list';
 import { MessageInput } from './message-input';
 import { EmptyState } from './empty-state';
+import { useChatMessages } from '../hooks/use-chat-messages';
 import type { Conversation } from '../types';
 
 export function MessagingView() {
   const { user } = useAuth();
   const currentUserId = user?.id;
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const { messages, loading, sendMessage } = useChatMessages(activeConversation?.id ?? null);
 
   const handleConversationSelect = (conversation: Conversation) => {
     setActiveConversation(conversation);
@@ -63,9 +65,14 @@ export function MessagingView() {
               onConversationDeleted={handleConversationDeleted}
             />
 
-            <MessageList conversationId={activeConversation.id} currentUserId={currentUserId} />
+            <MessageList
+              conversationId={activeConversation.id}
+              currentUserId={currentUserId}
+              messages={messages}
+              loading={loading}
+            />
 
-            <MessageInput conversationId={activeConversation.id} currentUserId={currentUserId} />
+            <MessageInput conversationId={activeConversation.id} onSendMessage={sendMessage} />
           </>
         ) : (
           <EmptyState />
