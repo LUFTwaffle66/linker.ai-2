@@ -90,6 +90,11 @@ export function NotificationItem({ notification, onClick, onDelete }: Notificati
               >
                 {notification.title}
               </p>
+              {notification.actor_name && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  From {notification.actor_name}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                 {notification.message}
               </p>

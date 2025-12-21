@@ -53,14 +53,18 @@ export function Signup({ onNavigate, onSignup }: SignupProps) {
   });
 
   const signupMutation = useSignup({
-    onSuccess: async (data: any) => {
+    onSuccess: async (data: any, variables: SignupDTO) => {
       toast.success('Account created successfully! Please check your email to verify your account.');
       console.log('Signup successful:', data);
-      onSignup?.(activeTab);
 
-      // Supabase Auth automatically signs in the user after signup
-      // Redirect to appropriate onboarding screen
-      if (activeTab === 'client') {
+      // Role taken directly from submitted variables (never stale, always 'client' or 'freelancer')
+      const role = variables.role as UserType;
+
+      // Inform parent (if needed)
+      onSignup?.(role);
+
+      // Redirect to appropriate onboarding screen based on submitted role
+      if (role === 'client') {
         router.push(paths.auth.onboardingClient.getHref());
       } else {
         router.push(paths.auth.onboardingFreelancer.getHref());

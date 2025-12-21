@@ -47,14 +47,19 @@ export async function createClientProfile(
       timeline: data.timeline,
       onboarding_completed: true,
     })
-    .select()
-    .single();
+    .select();
+
+  const createdProfile = profile?.[0] ?? null;
 
   if (error) {
     throw new Error(`Failed to create client profile: ${error.message}`);
   }
 
-  return profile;
+  if (!createdProfile) {
+    throw new Error('Failed to create client profile: No data returned');
+  }
+
+  return createdProfile;
 }
 
 export async function updateClientProfile(
@@ -79,14 +84,19 @@ export async function updateClientProfile(
     .from('client_profiles')
     .update(updateData)
     .eq('user_id', userId)
-    .select()
-    .single();
+    .select();
+
+  const updatedProfile = profile?.[0] ?? null;
 
   if (error) {
     throw new Error(`Failed to update client profile: ${error.message}`);
   }
 
-  return profile;
+  if (!updatedProfile) {
+    throw new Error('Failed to update client profile: No data returned');
+  }
+
+  return updatedProfile;
 }
 
 export async function getClientProfile(
@@ -96,8 +106,9 @@ export async function getClientProfile(
   const { data: profile, error } = await supabase
     .from('client_profiles')
     .select('*')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
+
+  const clientProfile = profile?.[0] ?? null;
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -107,7 +118,11 @@ export async function getClientProfile(
     throw new Error(`Failed to get client profile: ${error.message}`);
   }
 
-  return profile;
+  if (!clientProfile) {
+    return null;
+  }
+
+  return clientProfile;
 }
 
 // =============================================
@@ -191,14 +206,19 @@ export async function createFreelancerProfile(
       hourly_rate: parseFloat(data.hourlyRate),
       onboarding_completed: true,
     })
-    .select()
-    .single();
+    .select();
+
+  const createdProfile = profile?.[0] ?? null;
 
   if (error) {
     throw new Error(`Failed to create freelancer profile: ${error.message}`);
   }
 
-  return profile;
+  if (!createdProfile) {
+    throw new Error('Failed to create freelancer profile: No data returned');
+  }
+
+  return createdProfile;
 }
 
 export async function updateFreelancerProfile(
@@ -243,14 +263,19 @@ export async function updateFreelancerProfile(
     .from('freelancer_profiles')
     .update(updateData)
     .eq('user_id', userId)
-    .select()
-    .single();
+    .select();
+
+  const updatedProfile = profile?.[0] ?? null;
 
   if (error) {
     throw new Error(`Failed to update freelancer profile: ${error.message}`);
   }
 
-  return profile;
+  if (!updatedProfile) {
+    throw new Error('Failed to update freelancer profile: No data returned');
+  }
+
+  return updatedProfile;
 }
 
 export async function getFreelancerProfile(
@@ -260,8 +285,9 @@ export async function getFreelancerProfile(
   const { data: profile, error } = await supabase
     .from('freelancer_profiles')
     .select('*')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
+
+  const freelancerProfile = profile?.[0] ?? null;
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -271,5 +297,9 @@ export async function getFreelancerProfile(
     throw new Error(`Failed to get freelancer profile: ${error.message}`);
   }
 
-  return profile;
+  if (!freelancerProfile) {
+    return null;
+  }
+
+  return freelancerProfile;
 }

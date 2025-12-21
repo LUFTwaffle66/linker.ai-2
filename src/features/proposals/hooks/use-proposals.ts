@@ -95,6 +95,7 @@ export function useCreateProposal() {
       }
 
       // Invalidate project details to update proposal count
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(data.project_id) });
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
 
@@ -126,6 +127,7 @@ export function useUpdateProposal() {
         queryClient.invalidateQueries({ queryKey: proposalKeys.freelancer(data.freelancer_id) });
       }
 
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
       queryClient.invalidateQueries({ queryKey: proposalKeys.stats(data.project_id) });
 
       toast.success('Proposal updated successfully!');
@@ -171,6 +173,7 @@ export function useWithdrawProposal() {
         queryClient.invalidateQueries({ queryKey: proposalKeys.freelancer(data.freelancer_id) });
       }
 
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
       queryClient.invalidateQueries({ queryKey: proposalKeys.stats(data.project_id) });
 
       toast.success('Proposal withdrawn successfully!');
@@ -192,6 +195,7 @@ export function useMarkProposalAsViewed() {
     onSuccess: (data, proposalId) => {
       queryClient.invalidateQueries({ queryKey: proposalKeys.detail(proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.project(data.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
     },
     onError: (error: Error) => {
       console.error('Failed to mark proposal as viewed:', error.message);
@@ -214,6 +218,7 @@ export function useAcceptProposal() {
       queryClient.invalidateQueries({ queryKey: proposalKeys.stats(data.project_id) });
 
       // Invalidate project details since hired_freelancer_id changed
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(data.project_id) });
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
 
@@ -238,6 +243,7 @@ export function useRejectProposal() {
       queryClient.invalidateQueries({ queryKey: proposalKeys.detail(variables.proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.project(data.project_id) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.stats(data.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
 
       toast.success('Proposal rejected');
     },
@@ -259,6 +265,7 @@ export function useShortlistProposal() {
       queryClient.invalidateQueries({ queryKey: proposalKeys.detail(proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.project(data.project_id) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.stats(data.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
 
       toast.success('Proposal shortlisted!');
     },
@@ -280,6 +287,7 @@ export function useReviewProposal() {
       queryClient.invalidateQueries({ queryKey: proposalKeys.detail(proposalId) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.project(data.project_id) });
       queryClient.invalidateQueries({ queryKey: proposalKeys.stats(data.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
 
       toast.success('Proposal moved to under review!');
     },

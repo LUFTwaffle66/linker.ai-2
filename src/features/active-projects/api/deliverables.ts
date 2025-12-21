@@ -9,6 +9,7 @@ export interface Deliverable {
   title: string;
   description: string;
   status: 'submitted' | 'approved' | 'revision_requested';
+   delivery_attachments?: DeliverableAttachment[];
   submitted_at: string;
   reviewed_at: string | null;
   review_feedback: string | null;
@@ -18,15 +19,70 @@ export interface Deliverable {
 
 export interface SubmitDeliverableParams {
   project_id: string;
-  freelancer_id: string;
+  freelancer_id?: string | null;
   title: string;
   description: string;
+  attachments?: File[];
 }
 
 export interface ReviewDeliverableParams {
   deliverableId: string;
   status: 'approved' | 'revision_requested';
   feedback?: string;
+}
+
+export interface DeliverableAttachment {
+  name: string;
+  url?: string | null;
+  path?: string;
+  bucket?: string;
+  size?: number;
+  type?: string;
+}
+
+const DELIVERABLE_BUCKET =
+  process.env.NEXT_PUBLIC_SUPABASE_DELIVERABLES_BUCKET || 'project-files';
+
+async function uploadDeliverableFiles(
+  projectId: string,
+  files?: File[]
+): Promise<DeliverableAttachment[]> {
+  if (!files || files.length === 0) return [];
+
+  const uploads = await Promise.all(
+    files.map(async (file) => {
+      const extension = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+      const path = `deliverables/${projectId}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.${extension}`;
+
+      const { data, error } = await supabase.storage
+        .from(DELIVERABLE_BUCKET)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        throw new Error(error.message || `Failed to upload ${file.name}`);
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(DELIVERABLE_BUCKET)
+        .getPublicUrl(path);
+
+      return {
+        name: file.name,
+        path: data?.path || path,
+        bucket: DELIVERABLE_BUCKET,
+        url: publicUrlData?.publicUrl || null,
+        size: file.size,
+        type: file.type,
+      };
+    })
+  );
+
+  return uploads;
 }
 
 /**
@@ -47,7 +103,22 @@ export async function fetchProjectDeliverables(projectId: string): Promise<Deliv
  * Submit a deliverable (freelancer)
  */
 export async function submitDeliverable(params: SubmitDeliverableParams): Promise<Deliverable> {
-  const { project_id, freelancer_id, title, description } = params;
+  const { project_id, freelancer_id, title, description, attachments } = params;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('User not authenticated');
+
+  const role =
+    (user as any).role || user.app_metadata?.role || (user as any)?.user_metadata?.role || 'freelancer';
+  const resolvedFreelancerId = role === 'freelancer' ? user.id : freelancer_id;
+
+  if (!resolvedFreelancerId) {
+    throw new Error('Missing freelancer ID');
+  }
+
+  const uploadedAttachments = await uploadDeliverableFiles(project_id, attachments);
 
   // Get project details for notification
   const { data: project } = await supabase
@@ -74,10 +145,11 @@ export async function submitDeliverable(params: SubmitDeliverableParams): Promis
     .from('project_deliverables')
     .insert({
       project_id,
-      freelancer_id,
+      freelancer_id: resolvedFreelancerId,
       title,
       description,
       status: 'submitted',
+      ...(uploadedAttachments.length > 0 && { delivery_attachments: uploadedAttachments }),
     })
     .select()
     .single();
@@ -93,7 +165,7 @@ export async function submitDeliverable(params: SubmitDeliverableParams): Promis
       title: 'Work Submitted for Review',
       message: `${project.freelancer.full_name} submitted work for "${project.title}"`,
       project_id: project_id,
-      actor_id: freelancer_id,
+      actor_id: resolvedFreelancerId,
       metadata: {
         deliverable_title: title,
         deliverable_description: description,

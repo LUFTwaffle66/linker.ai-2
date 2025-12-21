@@ -21,6 +21,7 @@ import {
 import { paths } from '@/config/paths';
 import { ShareProfileDialog } from './share-profile-dialog';
 import type { ClientProfileData } from '../types';
+import { useAuth } from '@/features/auth/lib/auth-client';
 
 interface ClientProfileProps {
   profile: ClientProfileData;
@@ -31,7 +32,9 @@ interface ClientProfileProps {
 
 export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavigateToMessages }: ClientProfileProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const isSelf = isOwnProfile || user?.id === clientId || user?.id === profile.id;
 
   const handlePostProject = () => {
     router.push(paths.app.postProject.getHref());
@@ -128,10 +131,12 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
                       </div>
 
                       <div className="flex flex-col gap-2 min-w-[200px]">
-                        <Button className="w-full" onClick={handleSendMessage}>
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          Send Message
-                        </Button>
+                        {!isSelf && (
+                          <Button className="w-full" onClick={handleSendMessage}>
+                            <MessageSquare className="w-4 h-4 mr-2" />
+                            Send Message
+                          </Button>
+                        )}
                         <Button variant="outline" className="w-full" onClick={handlePostProject}>
                           <Plus className="w-4 h-4 mr-2" />
                           Post New Project

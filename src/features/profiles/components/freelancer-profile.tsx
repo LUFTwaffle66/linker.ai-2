@@ -35,6 +35,7 @@ import {
   useAddFreelancerExperience,
 } from '../hooks/use-profile-mutations';
 import type { FreelancerProfileData } from '../types';
+import { useAuth } from '@/features/auth/lib/auth-client';
 
 interface FreelancerProfileProps {
   profile: FreelancerProfileData;
@@ -45,6 +46,7 @@ interface FreelancerProfileProps {
 
 export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false, onNavigateToMessages }: FreelancerProfileProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [editAboutOpen, setEditAboutOpen] = useState(false);
   const [editSkillsOpen, setEditSkillsOpen] = useState(false);
@@ -103,6 +105,8 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
     await addExperienceMutation.mutateAsync({ userId: freelancerId, experience });
     setEditExperienceOpen(false);
   };
+
+  const isSelf = isOwnProfile || user?.id === freelancerId || user?.id === profile.id;
 
   const getInitials = (name: string) => {
     const names = name.split(' ');
@@ -179,10 +183,12 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                       </div>
 
                       <div className="flex flex-col gap-2 min-w-[200px]">
-                        <Button className="w-full" onClick={handleSendMessage}>
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          Contact {profile.name.split(' ')[0]}
-                        </Button>
+                        {!isSelf && (
+                          <Button className="w-full" onClick={handleSendMessage}>
+                            <MessageSquare className="w-4 h-4 mr-2" />
+                            Contact {profile.name.split(' ')[0]}
+                          </Button>
+                        )}
                         <Button variant="outline" className="w-full" onClick={handleShare}>
                           <Share2 className="w-4 h-4 mr-2" />
                           Share Profile

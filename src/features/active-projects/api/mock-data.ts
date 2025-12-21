@@ -7,6 +7,8 @@ import type {
 
 export const MOCK_PROJECT: ProjectInfo = {
   id: 'project-1',
+  clientId: 'client-1',
+  freelancerId: 'freelancer-1',
   title: 'Customer Support AI Chatbot',
   client: 'TechCorp Solutions',
   clientAvatar: 'TC',

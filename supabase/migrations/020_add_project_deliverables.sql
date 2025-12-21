@@ -1,7 +1,7 @@
 -- Create project deliverables table for work submissions
 -- No file attachments - deliverables are text-based only
 CREATE TABLE IF NOT EXISTS project_deliverables (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   freelancer_id UUID NOT NULL REFERENCES users(id),
   title TEXT NOT NULL,

@@ -108,23 +108,23 @@ export default function TermsOfServicePage() {
       content: [
         {
           subtitle: '5.1 Payment Structure',
-          text: 'LinkerAI uses a 50% upfront + 50% completion payment model. When a client hires an AI expert, 50% of the project budget is released immediately to the expert. The remaining 50% is held in escrow and released upon project completion and client approval.',
+          text: 'LinkerAI operates on a two-stage milestone model consisting of a 50% Upfront Payment and a 50% Final Milestone. When a Client hires an AI Expert, the 50% upfront portion is released immediately to the Expert to initiate the project. The remaining 50% is secured by the platform as a final milestone and is released to the Expert only upon project completion and explicit Client approval.',
         },
         {
           subtitle: '5.2 Platform Fees',
-          text: 'LinkerAI charges a service fee of 10% on all projects. This fee is deducted from payments to AI experts and covers payment processing, escrow services, dispute resolution, and platform maintenance.',
+          text: 'LinkerAI charges a service fee of 15% on all projects. This fee is deducted from the total project budget and covers secure payment processing, milestone management, dispute resolution services, and platform maintenance.',
         },
         {
           subtitle: '5.3 Payment Processing',
-          text: 'All payments are processed through our secure payment partners. Clients must fund projects in full before work begins. AI experts receive payments to their designated payment method (bank account or PayPal).',
+          text: 'All payments are processed through our secure third-party payment partners. Clients are required to fund the project in its entirety (both the upfront and milestone portions) before work begins. AI Experts receive their earned payments via their designated payment method once funds are released according to the project milestones.',
         },
         {
           subtitle: '5.4 Refunds',
-          text: 'The 50% upfront payment is non-refundable once released to the AI expert. The escrow payment (50% remaining) may be refunded if the expert fails to deliver as agreed, subject to our dispute resolution process.',
+          text: "The 50% upfront payment is non-refundable once released to the AI Expert. The Final Milestone payment (the remaining 50%) remains refundable if the Expert fails to deliver the work as agreed, subject to the outcome of LinkerAI's formal dispute resolution process.",
         },
         {
           subtitle: '5.5 Taxes',
-          text: 'Users are responsible for determining and paying all applicable taxes. LinkerAI provides tax documentation (1099 forms for US users) but does not provide tax advice. Consult a tax professional for guidance.',
+          text: 'Users are solely responsible for determining, reporting, and paying all applicable local and international taxes. LinkerAI may provide relevant tax documentation where legally required (such as 1099 forms for US-based users) but does not provide financial or tax advice.',
         },
       ],
     },

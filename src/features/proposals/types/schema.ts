@@ -31,16 +31,18 @@ const totalBudgetSchema = z
 
 /**
  * Timeline validation
- * Accepts formats like "2 weeks", "1 month", "3-4 weeks"
+ * Accepts structured duration (value + unit)
  */
-const timelineSchema = z
-  .string()
-  .min(1, 'Timeline is required')
-  .max(100, 'Timeline must be less than 100 characters')
-  .refine(
-    (value) => value.trim().length > 0,
-    'Timeline cannot be empty'
-  );
+const durationValueSchema = z.coerce.number({
+  required_error: 'Duration is required',
+  invalid_type_error: 'Duration must be a number',
+})
+  .min(1, 'Duration must be at least 1')
+  .max(730, 'Duration must be less than 730 (about 2 years)');
+
+const durationUnitSchema = z.enum(['days', 'weeks', 'months'], {
+  required_error: 'Select a duration unit',
+});
 
 /**
  * File attachment validation
@@ -58,7 +60,8 @@ const attachmentsSchema = z
 export const proposalSchema = z.object({
   coverLetter: coverLetterSchema,
   totalBudget: totalBudgetSchema,
-  timeline: timelineSchema,
+  duration_value: durationValueSchema,
+  duration_unit: durationUnitSchema,
   attachments: attachmentsSchema,
 });
 
@@ -74,6 +77,7 @@ export type ProposalFormData = z.infer<typeof proposalSchema>;
 export interface ProposalSubmission extends ProposalFormData {
   projectId: number | string;
   freelancerId?: string;
+  timeline?: string;
 }
 
 /**

@@ -1,71 +1,21 @@
 'use client';
 
-import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import {
-  Wallet,
-  Shield,
-  DollarSign,
-  Briefcase,
-  History,
-  Plus,
-  CheckCircle,
-} from 'lucide-react';
-import {
-  useClientBalance,
-  useClientProjects,
-  useClientTransactions,
-  usePaymentMethods,
-  useAddFunds,
-  useReleaseFinalPayment,
-} from '../hooks';
-import { toast } from 'sonner';
+import { Shield, DollarSign, Briefcase, History, CheckCircle } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
+import { useClientBalance, useClientProjects, useClientTransactions } from '../hooks/use-client-payments';
 import { BalanceCard } from './shared/balance-card';
 import { TransactionHistory } from './shared/transaction-history';
-import { PaymentMethods } from './shared/payment-methods';
 
 export function ClientPayments() {
-  const [addFundsAmount, setAddFundsAmount] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
-  const [showAddFunds, setShowAddFunds] = useState(false);
-
   const { data: balance, isLoading: balanceLoading } = useClientBalance();
   const { data: projects, isLoading: projectsLoading } = useClientProjects();
   const { data: transactions, isLoading: transactionsLoading } = useClientTransactions();
-  const { data: paymentMethods } = usePaymentMethods();
-  const addFundsMutation = useAddFunds();
-  const releaseMutation = useReleaseFinalPayment();
-
-  const handleAddFunds = () => {
-    const amount = parseFloat(addFundsAmount);
-    if (!amount || amount < 10 || !selectedPaymentMethod) {
-      toast.error('Please enter a valid amount and select a payment method');
-      return;
-    }
-
-    addFundsMutation.mutate(
-      { amount, paymentMethodId: selectedPaymentMethod },
-      {
-        onSuccess: () => {
-          toast.success('Funds added successfully');
-          setShowAddFunds(false);
-          setAddFundsAmount('');
-        },
-        onError: (error) => {
-          toast.error(error.message || 'Failed to add funds');
-        },
-      }
-    );
-  };
 
   if (balanceLoading) return <div className="p-8">Loading...</div>;
 
@@ -75,29 +25,11 @@ export function ClientPayments() {
         <div className="mb-8">
           <h1 className="text-3xl mb-2">Payments & Billing</h1>
           <p className="text-muted-foreground">
-            Manage your payments, escrow accounts, and billing information
+            View your billing overview, secured milestone funds, and payment history.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <BalanceCard
-            title="Account Balance"
-            amount={balance?.availableBalance || 0}
-            icon={<Wallet className="w-5 h-5 text-primary" />}
-            onAddFunds={() => setShowAddFunds(true)}
-          />
-          <BalanceCard
-            title="In Escrow"
-            amount={balance?.escrowBalance || 0}
-            icon={<Shield className="w-5 h-5 text-cyan-500" />}
-            footerText="Protected funds"
-          />
-          <BalanceCard
-            title="Pending Payments"
-            amount={balance?.pendingPayments || 0}
-            icon={<DollarSign className="w-5 h-5 text-muted-foreground" />}
-            footerText="Processing"
-          />
           <BalanceCard
             title="Total Spent"
             amount={balance?.totalSpent || 0}
@@ -125,7 +57,7 @@ export function ClientPayments() {
               <TabsContent value="projects">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Active Projects & Escrow</CardTitle>
+                    <CardTitle>Active Projects & Milestone Payments</CardTitle>
                     <CardDescription>Manage payments for your ongoing projects</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -134,17 +66,23 @@ export function ClientPayments() {
                     ) : (
                       projects?.map((project, idx) => (
                         <div key={project.id}>
-                          <div className="space-y-4">
-                            <div>
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="block rounded-lg transition hover:bg-accent/50 cursor-pointer"
+                          >
+                            <div className="space-y-4 p-3">
                               <div className="flex items-start justify-between mb-2">
                                 <div>
-                                  <h4 className="font-medium mb-1">{project.projectName}</h4>
+                                  <h4 className="font-medium mb-1 flex items-center gap-2">
+                                    {project.projectName}
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                  </h4>
                                   <p className="text-sm text-muted-foreground">{project.freelancerName}</p>
                                 </div>
                                 <div className="text-right">
                                   <Badge variant="secondary">${project.totalBudget.toLocaleString()}</Badge>
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    ${project.amountInEscrow.toLocaleString()} in escrow
+                                    ${project.amountInEscrow.toLocaleString()} secured for milestones
                                   </p>
                                 </div>
                               </div>
@@ -157,25 +95,7 @@ export function ClientPayments() {
                               </div>
                               <Progress value={(project.amountPaid / project.totalBudget) * 100} className="h-2" />
                             </div>
-
-                            {project.amountInEscrow > 0 && project.status === 'active' && (
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  releaseMutation.mutate(
-                                    { contractId: project.id, amount: project.amountInEscrow },
-                                    {
-                                      onSuccess: () => toast.success('Payment released successfully'),
-                                      onError: (error) => toast.error(error.message || 'Failed to release payment'),
-                                    }
-                                  );
-                                }}
-                                disabled={releaseMutation.isPending}
-                              >
-                                Release Final Payment (${project.amountInEscrow.toLocaleString()})
-                              </Button>
-                            )}
-                          </div>
+                          </Link>
                           {idx !== (projects?.length || 0) - 1 && <Separator className="mt-6" />}
                         </div>
                       ))
@@ -191,28 +111,29 @@ export function ClientPayments() {
           </div>
 
           <div className="space-y-6">
-            <PaymentMethods paymentMethods={paymentMethods || []} />
             <Card className="border-cyan-500/20 bg-cyan-500/5">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-cyan-600" />
-                  <CardTitle>Escrow Protection</CardTitle>
+                  <CardTitle>Secured Payments</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">Your payments are protected by our secure escrow system</p>
+                <p className="text-sm text-muted-foreground">
+                  Your payments flow through secured milestone payments.
+                </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-cyan-600 mt-0.5 flex-shrink-0" />
-                    <span>Funds held securely until project completion</span>
+                    <span>Funds move only when milestones are approved.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-cyan-600 mt-0.5 flex-shrink-0" />
-                    <span>Release payments only when satisfied</span>
+                    <span>Release payments when you approve the work.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 text-cyan-600 mt-0.5 flex-shrink-0" />
-                    <span>Dispute resolution support</span>
+                    <span>Dispute resolution support.</span>
                   </li>
                 </ul>
               </CardContent>

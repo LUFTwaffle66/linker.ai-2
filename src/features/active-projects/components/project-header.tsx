@@ -19,7 +19,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
   // Status text based on payment
   const getProgressStatus = () => {
     if (project.upfrontPaid && project.finalPaid) return 'Both payments completed';
-    if (project.upfrontPaid) return 'Upfront payment received';
+    if (project.upfrontPaid) return 'Milestone funded';
     return 'Awaiting upfront payment';
   };
 

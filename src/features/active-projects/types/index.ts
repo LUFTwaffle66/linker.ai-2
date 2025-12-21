@@ -14,6 +14,8 @@ export type UpdateType =
 
 export interface ProjectInfo {
   id: string;
+  clientId: string;
+  freelancerId?: string | null;
   title: string;
   client: string;
   clientAvatar: string;
@@ -30,6 +32,7 @@ export interface ProjectInfo {
   deadline: string;
   progress: number;
   status: ProjectStatus;
+  attachments?: any[];
   deliverables: string[];
 }
 

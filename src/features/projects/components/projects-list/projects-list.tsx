@@ -16,6 +16,7 @@ import type { ProjectWithClient } from '../../api/projects';
 
 interface ProjectsListProps {
   projects: ProjectWithClient[];
+  currentUserId?: string;
 }
 
 const categories = [
@@ -30,19 +31,35 @@ const categories = [
   'Other',
 ];
 
-export function ProjectsList({ projects }: ProjectsListProps) {
+export function ProjectsList({ projects, currentUserId }: ProjectsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
 
+  const userProjects = useMemo(
+    () =>
+      currentUserId
+        ? projects.filter(
+            (project) =>
+              project.client_id === currentUserId || project.hired_freelancer_id === currentUserId
+          )
+        : projects,
+    [projects, currentUserId]
+  );
+
   // Separate projects by status
   const activeProjects = useMemo(
-    () => projects.filter((p) => p.status === 'in_progress'),
-    [projects]
+    () => userProjects.filter((p) => p.status === 'in_progress'),
+    [userProjects]
   );
 
   const completedProjects = useMemo(
-    () => projects.filter((p) => p.status === 'completed'),
-    [projects]
+    () =>
+      userProjects.filter(
+        (p) =>
+          p.status === 'completed' &&
+          (!currentUserId || p.client_id === currentUserId || p.hired_freelancer_id === currentUserId)
+      ),
+    [userProjects, currentUserId]
   );
 
   // Filter function
@@ -71,10 +88,7 @@ export function ProjectsList({ projects }: ProjectsListProps) {
     [completedProjects, searchQuery, selectedCategory]
   );
 
-  const filteredAll = useMemo(
-    () => filterProjects(projects),
-    [projects, searchQuery, selectedCategory]
-  );
+  const filteredAll = useMemo(() => filterProjects(userProjects), [userProjects, searchQuery, selectedCategory]);
 
   return (
     <div className="space-y-6">

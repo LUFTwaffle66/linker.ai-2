@@ -98,7 +98,12 @@ export function Navigation() {
                   variant="outline"
                   className="ml-4 border-yellow-600 text-yellow-700 hover:bg-yellow-100 dark:border-yellow-500 dark:text-yellow-400 dark:hover:bg-yellow-900/40"
                   onClick={() => {
-                    const role = (user as any)?.user_metadata?.role || 'freelancer';
+                    // Prefer role from our own users table; fallback to auth metadata; default freelancer
+                    const role =
+                      (user as any)?.role ||
+                      (user as any)?.user_metadata?.role ||
+                      'freelancer';
+
                     if (role === 'client') {
                       router.push(paths.auth.onboardingClient.getHref());
                     } else {

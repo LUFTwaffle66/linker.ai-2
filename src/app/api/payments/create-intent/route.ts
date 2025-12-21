@@ -4,7 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
-    const { projectId, clientId, freelancerId } = await req.json();
+    const { projectId, clientId, freelancerId, milestoneType } = await req.json();
+
+    if (milestoneType !== 'upfront_50' && milestoneType !== 'final_50') {
+      throw new Error('Invalid milestone type');
+    }
 
     // Get project details
     const { data: project } = await supabaseAdmin
@@ -26,14 +30,17 @@ export async function POST(req: NextRequest) {
       throw new Error('Freelancer has not connected Stripe account');
     }
 
-    // Calculate amounts (50% upfront)
+    // Calculate amounts
     const totalAmount = project.fixed_budget * 100; // Convert to cents
-    const upfrontAmount = Math.round(totalAmount * 0.5);
-    const platformFee = Math.round(upfrontAmount * (platformFeePercentage / 100));
+    const halfAmount = Math.round(totalAmount * 0.5);
+    const amount = milestoneType === 'upfront_50' ? halfAmount : halfAmount;
+    const platformFee = Math.round(amount * (platformFeePercentage / 100));
+    const description =
+      milestoneType === 'upfront_50' ? '50% Upfront Payment' : 'Final Payment';
 
     // Create Payment Intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: upfrontAmount,
+      amount,
       currency: 'usd',
       application_fee_amount: platformFee,
       transfer_data: {
@@ -43,9 +50,9 @@ export async function POST(req: NextRequest) {
         projectId: projectId,
         clientId: clientId,
         freelancerId: freelancerId,
-        milestoneType: 'upfront_50',
+        milestoneType,
       },
-      description: `${project.title} - 50% Upfront Payment`,
+      description: `${project.title} - ${description}`,
     });
 
     // Save to database
@@ -54,9 +61,9 @@ export async function POST(req: NextRequest) {
       client_id: clientId,
       freelancer_id: freelancerId,
       stripe_payment_intent_id: paymentIntent.id,
-      amount: upfrontAmount,
+      amount,
       platform_fee: platformFee,
-      milestone_type: 'upfront_50',
+      milestone_type: milestoneType,
       status: paymentIntent.status,
     });
 

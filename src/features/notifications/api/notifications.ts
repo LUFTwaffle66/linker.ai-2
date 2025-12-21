@@ -13,6 +13,8 @@ import type {
   NotificationStats,
 } from '../types';
 
+const DEFAULT_PAGE_SIZE = 10;
+
 /**
  * Fetch notifications for the current user
  * RLS policies automatically filter by auth.uid()
@@ -38,13 +40,13 @@ export async function fetchNotifications(
     query = query.eq('is_archived', filters.is_archived);
   }
 
-  // Pagination
-  if (filters?.limit) {
+  // Pagination using range
+  if (filters?.offset !== undefined && filters?.limit !== undefined) {
+    const from = filters.offset;
+    const to = from + filters.limit - 1;
+    query = query.range(from, to);
+  } else if (filters?.limit) {
     query = query.limit(filters.limit);
-  }
-
-  if (filters?.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
   }
 
   const { data, error } = await query;
@@ -154,10 +156,24 @@ export async function createNotification(
     p_payment_intent_id: request.payment_intent_id || null,
     p_actor_id: request.actor_id || null,
     p_metadata: request.metadata || {},
-    p_action_url: request.action_url || null,
+    // Auto-generate invitation link when applicable
+    p_action_url:
+      request.type === 'project_invitation' && request.project_id
+        ? `/projects/${request.project_id}?fromInvitation=true`
+        : request.action_url || null,
   });
 
   if (error) throw error;
+
+  // Also record project invitations for proposal flow
+  if (request.type === 'project_invitation' && request.project_id && request.user_id) {
+    await supabase.from('project_invitations').insert({
+      project_id: request.project_id,
+      client_id: request.actor_id || null,
+      freelancer_id: request.user_id,
+    });
+  }
+
   return data;
 }
 

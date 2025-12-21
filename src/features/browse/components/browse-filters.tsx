@@ -31,6 +31,11 @@ export function BrowseFiltersComponent({
   availableCategories = [],
   availableSkills = []
 }: BrowseFiltersComponentProps) {
+  const isProjectsTab = activeTab === 'projects';
+  const minBudgetOrRateKey = isProjectsTab ? 'minBudget' : 'minRate';
+  const maxBudgetOrRateKey = isProjectsTab ? 'maxBudget' : 'maxRate';
+  const currentMinBudgetOrRate = (filters as any)[minBudgetOrRateKey];
+  const currentMaxBudgetOrRate = (filters as any)[maxBudgetOrRateKey];
 
   const updateFilters = (key: string, value: any) => {
     onFiltersChange({ ...filters, [key]: value });
@@ -90,16 +95,24 @@ export function BrowseFiltersComponent({
           </Label>
           <Select
             value={
-              (filters as BrowseFilters).minBudget || (filters as BrowseFilters).maxBudget
-                ? `${(filters as BrowseFilters).minBudget || 0}-${(filters as BrowseFilters).maxBudget || 999999}`
+              currentMinBudgetOrRate || currentMaxBudgetOrRate
+                ? `${currentMinBudgetOrRate || 0}-${currentMaxBudgetOrRate || 999999}`
                 : 'all'
             }
             onValueChange={(value) => {
               if (value === 'all') {
-                onFiltersChange({ ...filters, minBudget: undefined, maxBudget: undefined });
+                onFiltersChange({
+                  ...filters,
+                  [minBudgetOrRateKey]: undefined,
+                  [maxBudgetOrRateKey]: undefined
+                });
               } else {
                 const [min, max] = value.split('-').map(v => v === '999999' ? undefined : parseInt(v));
-                onFiltersChange({ ...filters, minBudget: min || undefined, maxBudget: max || undefined });
+                onFiltersChange({
+                  ...filters,
+                  [minBudgetOrRateKey]: min || undefined,
+                  [maxBudgetOrRateKey]: max || undefined
+                });
               }
             }}
           >

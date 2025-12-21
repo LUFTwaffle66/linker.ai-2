@@ -16,16 +16,22 @@ interface ProjectCardProps {
 }
 
 const statusConfig = {
-  draft: { label: 'Draft', color: 'bg-gray-500' },
-  open: { label: 'Open', color: 'bg-blue-500' },
-  in_progress: { label: 'In Progress', color: 'bg-green-500' },
-  completed: { label: 'Completed', color: 'bg-purple-500' },
-  cancelled: { label: 'Cancelled', color: 'bg-red-500' },
+  draft: { label: 'Draft', color: 'bg-gray-500', badgeClass: '' },
+  open: { label: 'Open', color: 'bg-blue-500', badgeClass: '' },
+  in_progress: { label: 'In Progress', color: 'bg-green-500', badgeClass: '' },
+  completed: {
+    label: 'Completed',
+    color: 'bg-green-600',
+    badgeClass: 'bg-green-100 text-green-800 border-transparent',
+  },
+  cancelled: { label: 'Cancelled', color: 'bg-red-500', badgeClass: '' },
 } as const;
 
 export function ProjectCard({ project }: ProjectCardProps) {
   const router = useRouter();
   const status = statusConfig[project.status];
+  const acceptedProposal = project.proposals?.find((proposal) => proposal.status === 'accepted');
+  const displayPrice = acceptedProposal?.total_budget ?? project.fixed_budget;
 
   // Calculate progress (for now, use a simple logic based on status)
   const getProgress = () => {
@@ -35,6 +41,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
   };
 
   const progress = getProgress();
+  const fundedAmount =
+    progress === 100 ? displayPrice : progress === 50 ? displayPrice * 0.5 : 0;
+  const progressLabel =
+    progress > 0 ? `${progress}% Paid ($${fundedAmount.toLocaleString()})` : `${progress}%`;
   const startedDate = formatDistanceToNow(new Date(project.created_at), { addSuffix: true });
 
   return (
@@ -44,7 +54,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
               <div className={`w-2 h-2 rounded-full ${status.color}`} />
-              <Badge variant="secondary">{status.label}</Badge>
+              <Badge variant="secondary" className={status.badgeClass}>
+                {status.label}
+              </Badge>
             </div>
             <h3 className="text-lg font-semibold mb-1">{project.title}</h3>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -67,7 +79,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="w-4 h-4 text-muted-foreground" />
             <span className="font-medium">
-              ${project.fixed_budget.toLocaleString()}
+              ${displayPrice.toLocaleString()}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -80,7 +92,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{progress}%</span>
+              <span className="font-medium">{progressLabel}</span>
             </div>
             <Progress value={progress} className="h-2" />
             {/* TODO: Add next milestone info when milestones table is ready */}

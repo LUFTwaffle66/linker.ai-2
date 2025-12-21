@@ -1,8 +1,10 @@
 'use client';
 
+import { differenceInDays, startOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Paperclip, Download } from 'lucide-react';
 import type { ProjectInfo } from '../types';
 
 interface ProjectSidebarProps {
@@ -16,10 +18,11 @@ export function ProjectSidebar({ project }: ProjectSidebarProps) {
 
   // Calculate days remaining from deadline
   const calculateDaysRemaining = () => {
-    const deadline = new Date(project.deadline);
-    const today = new Date();
-    const diffTime = deadline.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const deadlineDate = project.deadline ? startOfDay(new Date(project.deadline)) : null;
+    const today = startOfDay(new Date());
+    if (!deadlineDate) return 0;
+
+    const diffDays = differenceInDays(deadlineDate, today);
     return diffDays > 0 ? diffDays : 0;
   };
 
@@ -66,6 +69,51 @@ export function ProjectSidebar({ project }: ProjectSidebarProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Project Attachments */}
+      {(project.attachments?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Paperclip className="w-4 h-4" />
+              Project Files
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {project.attachments?.map((file: any, index: number) => {
+              const fileName =
+                file?.name || file?.file_name || file?.filename || file?.title || `File ${index + 1}`;
+              const fileUrl = file?.url || file?.publicUrl || file?.path || file?.signedUrl;
+              const fileSize = file?.size || file?.file_size || file?.bytes;
+
+              return (
+                <a
+                  key={fileName + index}
+                  href={fileUrl || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-md border p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm truncate">{fileName}</p>
+                      {fileSize && (
+                        <p className="text-xs text-muted-foreground">
+                          {typeof fileSize === 'number'
+                            ? `${(fileSize / 1024).toFixed(1)} KB`
+                            : fileSize}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {fileUrl && <Download className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                </a>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

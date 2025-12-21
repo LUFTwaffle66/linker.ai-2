@@ -7,6 +7,7 @@ import {
   type SubmitDeliverableParams,
   type ReviewDeliverableParams,
 } from '../api/deliverables';
+import { projectKeys } from '@/features/projects/hooks/use-projects';
 
 /**
  * Query keys for deliverables
@@ -37,6 +38,8 @@ export function useSubmitDeliverable() {
     mutationFn: (params: SubmitDeliverableParams) => submitDeliverable(params),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: deliverableKeys.project(data.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
+      queryClient.invalidateQueries({ queryKey: projectKeys.detail(data.project_id) });
       toast.success('Work submitted successfully! Client will be notified.');
     },
     onError: (error: Error) => {
@@ -55,6 +58,7 @@ export function useReviewDeliverable() {
     mutationFn: (params: ReviewDeliverableParams) => reviewDeliverable(params),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: deliverableKeys.project(data.project_id) });
+      queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
 
       if (variables.status === 'approved') {
         toast.success('Work approved! Freelancer has been notified.');

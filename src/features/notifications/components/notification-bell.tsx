@@ -10,12 +10,17 @@ import {
 import { useUnreadCount } from '../hooks/use-notifications';
 import { NotificationList } from './notification-list';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/features/auth/lib/auth-client';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 
 interface NotificationBellProps {
   className?: string;
 }
 
 export function NotificationBell({ className }: NotificationBellProps) {
+  const { user } = useAuth();
+  // Initialize realtime subscription + toast updates
+  useRealtimeNotifications(user?.id);
   const { data: unreadCount = 0 } = useUnreadCount();
 
   return (

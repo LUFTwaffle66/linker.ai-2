@@ -9,6 +9,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { Control } from 'react-hook-form';
 
 interface BudgetTimelineSectionProps {
@@ -53,25 +60,57 @@ export function BudgetTimelineSection({
           )}
         />
 
-        <FormField
-          control={control}
-          name="timeline"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Project Timeline *</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="e.g., 4 weeks"
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>
-                Client preferred timeline: {projectTimeline}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-2">
+          <FormLabel>Project Timeline *</FormLabel>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr,0.9fr] gap-3">
+            <FormField
+              control={control}
+              name="duration_value"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="4"
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? '' : Number(e.target.value);
+                        field.onChange(value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="duration_unit"
+              render={({ field }) => (
+                <FormItem>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select unit" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="days">Days</SelectItem>
+                      <SelectItem value="weeks">Weeks</SelectItem>
+                      <SelectItem value="months">Months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormDescription>
+            Client preferred timeline: {projectTimeline}
+          </FormDescription>
+        </div>
       </CardContent>
     </Card>
   );

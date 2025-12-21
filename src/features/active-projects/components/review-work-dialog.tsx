@@ -39,9 +39,15 @@ interface ReviewWorkDialogProps {
   deliverable: Deliverable;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onApproved?: () => void;
 }
 
-export function ReviewWorkDialog({ deliverable, open, onOpenChange }: ReviewWorkDialogProps) {
+export function ReviewWorkDialog({
+  deliverable,
+  open,
+  onOpenChange,
+  onApproved,
+}: ReviewWorkDialogProps) {
   const [decision, setDecision] = useState<'approve' | 'request_revisions'>('approve');
   const reviewDeliverableMutation = useReviewDeliverable();
 
@@ -61,6 +67,10 @@ export function ReviewWorkDialog({ deliverable, open, onOpenChange }: ReviewWork
         feedback: data.feedback,
       });
 
+      if (data.decision === 'approve') {
+        onApproved?.();
+      }
+
       // Reset form and close dialog
       form.reset();
       onOpenChange(false);
@@ -71,95 +81,96 @@ export function ReviewWorkDialog({ deliverable, open, onOpenChange }: ReviewWork
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle>Review Work: {deliverable.title}</DialogTitle>
           <DialogDescription>
             Review the submitted work and either approve it or request revisions.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="mb-4 p-4 bg-muted rounded-lg">
-          <h4 className="font-medium mb-2">Deliverable Description</h4>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {deliverable.description}
-          </p>
-        </div>
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="decision"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Decision</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setDecision(value as 'approve' | 'request_revisions');
-                      }}
-                      className="space-y-3"
-                    >
-                      <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                        <RadioGroupItem value="approve" id="approve" />
-                        <Label htmlFor="approve" className="flex-1 cursor-pointer">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                            <span className="font-medium">Approve Work</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Accept the deliverable as complete and satisfactory
-                          </p>
-                        </Label>
-                      </div>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 space-y-6 py-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Deliverable Description</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {deliverable.description}
+                </p>
+              </div>
 
-                      <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
-                        <RadioGroupItem value="request_revisions" id="request_revisions" />
-                        <Label htmlFor="request_revisions" className="flex-1 cursor-pointer">
-                          <div className="flex items-center gap-2 mb-1">
-                            <XCircle className="w-4 h-4 text-orange-600" />
-                            <span className="font-medium">Request Revisions</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Ask the freelancer to make changes or improvements
-                          </p>
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="decision"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Decision</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setDecision(value as 'approve' | 'request_revisions');
+                        }}
+                        className="space-y-3"
+                      >
+                        <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                          <RadioGroupItem value="approve" id="approve" />
+                          <Label htmlFor="approve" className="flex-1 cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="font-medium">Approve Work</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Accept the deliverable as complete and satisfactory
+                            </p>
+                          </Label>
+                        </div>
 
-            <FormField
-              control={form.control}
-              name="feedback"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {decision === 'approve' ? 'Feedback (Optional)' : 'Revision Details'}
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={
-                        decision === 'approve'
-                          ? 'Great work! Everything looks good...'
-                          : 'Please make the following changes...'
-                      }
-                      rows={5}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                          <RadioGroupItem value="request_revisions" id="request_revisions" />
+                          <Label htmlFor="request_revisions" className="flex-1 cursor-pointer">
+                            <div className="flex items-center gap-2 mb-1">
+                              <XCircle className="w-4 h-4 text-orange-600" />
+                              <span className="font-medium">Request Revisions</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Ask the freelancer to make changes or improvements
+                            </p>
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <DialogFooter>
+              <FormField
+                control={form.control}
+                name="feedback"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {decision === 'approve' ? 'Feedback (Optional)' : 'Revision Details'}
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={
+                          decision === 'approve'
+                            ? 'Great work! Everything looks good...'
+                            : 'Please make the following changes...'
+                        }
+                        rows={5}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <DialogFooter className="px-6 py-4 border-t">
               <Button
                 type="button"
                 variant="outline"

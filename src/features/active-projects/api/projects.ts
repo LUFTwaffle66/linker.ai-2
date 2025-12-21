@@ -19,48 +19,143 @@ export class ApiError extends Error {
  * Get project details
  */
 export const getProject = async (projectId: string): Promise<ProjectInfo> => {
+  // Fetch core project details
   const { data, error } = await supabase
-    .from('projects')
-    .select(`
-      *,
-      client:users!projects_client_id_fkey(
-        id,
-        full_name,
-        company_name,
-        avatar_url
-      ),
-      freelancer:users!projects_hired_freelancer_id_fkey(
-        id,
-        full_name,
-        avatar_url
-      )
-    `)
-    .eq('id', projectId)
-    .single();
-
+  .from('projects')
+  .select(`
+    *,
+    client:users!projects_client_id_fkey(
+      id,
+      full_name,
+      company_name,
+      avatar_url
+    ),
+    freelancer:users!projects_hired_freelancer_id_fkey(
+      id,
+      full_name,
+      avatar_url
+    )
+  `)
+  .eq('id', projectId)
+  .single();
   if (error || !data) {
     throw new ApiError(404, 'Project not found');
   }
+// Fetch hired freelancer bid (actual agreed budget)
+let freelancerBidAmount = null;
+
+if (data.hired_freelancer_id) {
+  const { data: bidData, error: bidError } = await supabase
+    .from('proposals')
+    .select('total_budget')
+    .eq('project_id', projectId)
+    .eq('freelancer_id', data.hired_freelancer_id)
+    .maybeSingle();
+
+  if (bidError) {
+    console.error("Failed to load freelancer's bid:", bidError);
+  }
+
+  freelancerBidAmount = bidData ? Number(bidData.total_budget) : null;
+}
+const actualBudget = freelancerBidAmount ?? data.fixed_budget;
+
+
+  // Fetch payment intents for this project to derive real payment status
+  const { data: paymentIntents, error: paymentError } = await supabase
+    .from('payment_intents')
+    .select('*')
+    .eq('project_id', projectId);
+
+  if (paymentError) {
+    console.error('Failed to load payment intents', paymentError);
+  }
+
+  const upfrontIntent =
+    paymentIntents?.find((pi) => pi.milestone_type === 'upfront_50') ?? null;
+  const finalIntent =
+    paymentIntents?.find((pi) => pi.milestone_type === 'final_50') ?? null;
+
+  // Use payment transactions as the source of truth for payment status
+  const { data: paymentTransactions, error: paymentTxError } = await supabase
+    .from('payment_transactions')
+    .select('status, type, description, created_at')
+    .eq('project_id', projectId);
+
+  if (paymentTxError) {
+    console.error('Failed to load payment transactions', paymentTxError);
+  }
+
+  const successfulTransactions =
+    paymentTransactions?.filter(
+      (tx) =>
+        tx.type === 'payment' &&
+        (tx.status === 'succeeded' || tx.status === 'completed')
+    ) ?? [];
+
+  const upfrontTransaction = successfulTransactions.find((tx) =>
+    tx.description?.includes('upfront_50')
+  );
+  const finalTransaction = successfulTransactions.find((tx) =>
+    tx.description?.includes('final_50')
+  );
+
+  const derivedUpfrontPaid = Boolean(upfrontTransaction || finalTransaction);
+  const derivedFinalPaid = Boolean(finalTransaction);
+
+  // Fetch deliverables to drive progress state
+  const { data: deliverables, error: deliverablesError } = await supabase
+    .from('project_deliverables')
+    .select('id, status')
+    .eq('project_id', projectId);
+
+  if (deliverablesError) {
+    console.error('Failed to load deliverables', deliverablesError);
+  }
+
+  const hasSubmission = (deliverables?.length ?? 0) > 0;
+
 
   // Transform database data to ProjectInfo format
   const projectInfo: ProjectInfo = {
     id: data.id,
+    clientId: data.client_id,
+    freelancerId: data.hired_freelancer_id,
     title: data.title,
     client: data.client.company_name || data.client.full_name,
     clientAvatar: data.client.avatar_url || '',
     freelancer: data.freelancer?.full_name || '',
     freelancerAvatar: data.freelancer?.avatar_url || '',
-    budget: data.fixed_budget,
-    upfrontAmount: data.fixed_budget * 0.5, // 50% upfront (adjust as needed)
-    finalAmount: data.fixed_budget * 0.5, // 50% final
-    upfrontPaid: data.status === 'in_progress' || data.status === 'completed',
-    upfrontDate: data.created_at,
-    finalPaid: data.status === 'completed',
-    finalDate: data.closed_at || undefined,
+    budget: actualBudget,
+    upfrontAmount: actualBudget * 0.5,
+    finalAmount: actualBudget * 0.5,
+    upfrontPaid: derivedUpfrontPaid || upfrontIntent?.status === 'succeeded',
+    upfrontDate:
+      upfrontTransaction?.created_at ||
+      upfrontIntent?.created_at ||
+      data.upfront_date ||
+      data.created_at,
+    finalPaid:
+      derivedFinalPaid || finalIntent?.status === 'succeeded' || data.status === 'completed',
+    finalDate:
+      finalTransaction?.created_at || finalIntent?.created_at || data.final_date || data.closed_at || undefined,
     startDate: data.created_at,
     deadline: data.timeline,
-    progress: data.status === 'completed' ? 100 : data.status === 'in_progress' ? 50 : 0,
-    status: data.status === 'in_progress' ? 'in-progress' : data.status === 'completed' ? 'completed' : 'pending',
+    progress:
+      data.status === 'completed' || derivedFinalPaid
+        ? 100
+        : data.status === 'in_progress' && hasSubmission
+        ? 90
+        : derivedUpfrontPaid || upfrontIntent?.status === 'succeeded'
+        ? 50
+        : 0,
+    status:
+      data.status === 'in_progress'
+        ? 'in-progress'
+        : data.status === 'completed'
+        ? 'completed'
+        : 'pending',
+    attachments: data.attachments || [],
     deliverables: [], // TODO: Add when milestones table is ready
   };
 

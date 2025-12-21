@@ -79,4 +79,4 @@ END $$;
 CREATE POLICY "conversation_participants_insert"
   ON conversation_participants FOR INSERT
   TO authenticated
-  WITH CHECK (true);
+  WITH CHECK (user_id = auth.uid());

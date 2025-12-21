@@ -15,7 +15,8 @@ export default async function PaymentsPage() {
   }
 
   if (user.role === 'freelancer') {
-    return <FreelancerPayments />;
+    // PASS THE USER ID HERE
+    return <FreelancerPayments userId={user.id} />;
   }
 
   return (

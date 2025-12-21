@@ -15,6 +15,7 @@ interface ProjectDeliverablesTabProps {
   isClient: boolean;
   isFreelancer: boolean;
   freelancerId?: string;
+  onDeliverableApproved?: () => void;
 }
 
 const getStatusBadge = (status: Deliverable['status']) => {
@@ -35,6 +36,7 @@ export function ProjectDeliverablesTab({
   isClient,
   isFreelancer,
   freelancerId,
+  onDeliverableApproved,
 }: ProjectDeliverablesTabProps) {
   const { data: deliverables, isLoading } = useProjectDeliverables(projectId);
   const [selectedDeliverable, setSelectedDeliverable] = useState<Deliverable | null>(null);
@@ -114,6 +116,52 @@ export function ProjectDeliverablesTab({
                     </p>
                   </div>
 
+                  {/* Delivery Attachments */}
+                  {(deliverable.delivery_attachments?.length ?? 0) > 0 && (
+                    <div className="mb-4 space-y-2">
+                      <h4 className="text-sm font-medium mb-2">Attached Files</h4>
+                      {deliverable.delivery_attachments?.map((file: any, idx: number) => {
+                        const fileName =
+                          file?.name ||
+                          file?.file_name ||
+                          file?.filename ||
+                          file?.title ||
+                          `Attachment ${idx + 1}`;
+                        const fileUrl = file?.url || file?.publicUrl || file?.path || file?.signedUrl;
+                        const fileSize = file?.size || file?.file_size || file?.bytes;
+
+                        return (
+                          <a
+                            key={fileName + idx}
+                            href={fileUrl || undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between rounded-md border p-3 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Download className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-sm truncate">{fileName}</p>
+                                {fileSize && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {typeof fileSize === 'number'
+                                      ? `${(fileSize / 1024).toFixed(1)} KB`
+                                      : fileSize}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {fileUrl && (
+                              <Button variant="ghost" size="sm" className="flex-shrink-0">
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Review Feedback */}
                   {deliverable.review_feedback && (
                     <div className="mt-4 p-4 bg-muted rounded-lg">
@@ -145,6 +193,7 @@ export function ProjectDeliverablesTab({
           deliverable={selectedDeliverable}
           open={reviewDialogOpen}
           onOpenChange={setReviewDialogOpen}
+          onApproved={onDeliverableApproved}
         />
       )}
     </>

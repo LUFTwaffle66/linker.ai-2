@@ -33,17 +33,22 @@ export const getClientProfile = async (userId: string): Promise<ClientProfileDat
   }
 
   // Fetch client profile
-  const { data: profile, error: profileError } = await supabase
+  const { data: profileData, error: profileError } = await supabase
     .from('client_profiles')
     .select('*')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
   if (profileError) {
     if (profileError.code === 'PGRST116') {
       throw new ApiError(404, 'Client profile not found');
     }
     throw new ApiError(500, profileError.message);
+  }
+
+  const profile = profileData?.[0] ?? null;
+
+  if (!profile) {
+    throw new ApiError(404, 'Client profile not found');
   }
 
   // Map Supabase data to ClientProfileData type
@@ -115,11 +120,10 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
   }
 
   // Fetch freelancer profile
-  const { data: profile, error: profileError } = await supabase
+  const { data: profileData, error: profileError } = await supabase
     .from('freelancer_profiles')
     .select('*')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
   if (profileError) {
     if (profileError.code === 'PGRST116') {
@@ -127,6 +131,39 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
     }
     throw new ApiError(500, profileError.message);
   }
+
+  const profile = profileData?.[0] ?? null;
+
+  if (!profile) {
+    throw new ApiError(404, 'Freelancer profile not found');
+  }
+
+  // Stats: completed projects + total earnings from successful transactions
+  const [{ count: completedProjects = 0, error: completedProjectsError }, { data: earningsData, error: earningsError }] =
+    await Promise.all([
+      supabase
+        .from('projects')
+        .select('id', { count: 'exact', head: true })
+        .eq('hired_freelancer_id', userId)
+        .eq('status', 'completed'),
+      supabase
+        .from('payment_transactions')
+        .select('amount')
+        .eq('user_id', userId)
+        .eq('type', 'payment')
+        .in('status', ['succeeded', 'completed']),
+    ]);
+
+  if (completedProjectsError) {
+    throw new ApiError(500, `Failed to load completed projects: ${completedProjectsError.message}`);
+  }
+
+  if (earningsError) {
+    throw new ApiError(500, `Failed to load earnings: ${earningsError.message}`);
+  }
+
+  const totalEarnedCents = (earningsData ?? []).reduce((sum, tx) => sum + tx.amount, 0);
+  const totalEarnedFormatted = `$${(totalEarnedCents / 100).toFixed(2)}`;
 
   // Map Supabase data to FreelancerProfileData type
   return {
@@ -171,8 +208,8 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
     reviews: [],
     experience: (profile.work_experience as any[]) || [],
     stats: {
-      projectsCompleted: 0, // TODO: Calculate from projects
-      totalEarnings: '$0', // TODO: Calculate from payments
+      projectsCompleted: completedProjects || 0,
+      totalEarnings: totalEarnedFormatted,
       repeatClients: '0%',
       onTimeDelivery: '100%',
     },
@@ -355,14 +392,19 @@ export const addFreelancerPortfolio = async (
   }
 ): Promise<void> => {
   // First, get current portfolio
-  const { data: profile, error: fetchError } = await supabase
+  const { data: profileData, error: fetchError } = await supabase
     .from('freelancer_profiles')
     .select('portfolio')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
   if (fetchError) {
     throw new ApiError(500, `Failed to fetch profile: ${fetchError.message}`);
+  }
+
+  const profile = profileData?.[0] ?? null;
+
+  if (!profile) {
+    throw new ApiError(404, 'Failed to fetch profile');
   }
 
   // Add new portfolio item to the array with a generated ID
@@ -410,14 +452,19 @@ export const updateFreelancerPortfolio = async (
   }
 ): Promise<void> => {
   // First, get current portfolio
-  const { data: profile, error: fetchError } = await supabase
+  const { data: profileData, error: fetchError } = await supabase
     .from('freelancer_profiles')
     .select('portfolio')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
   if (fetchError) {
     throw new ApiError(500, `Failed to fetch profile: ${fetchError.message}`);
+  }
+
+  const profile = profileData?.[0] ?? null;
+
+  if (!profile) {
+    throw new ApiError(404, 'Failed to fetch profile');
   }
 
   // Update the specific portfolio item
@@ -460,14 +507,19 @@ export const deleteFreelancerPortfolio = async (
   portfolioId: string
 ): Promise<void> => {
   // First, get current portfolio
-  const { data: profile, error: fetchError } = await supabase
+  const { data: profileData, error: fetchError } = await supabase
     .from('freelancer_profiles')
     .select('portfolio')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
   if (fetchError) {
     throw new ApiError(500, `Failed to fetch profile: ${fetchError.message}`);
+  }
+
+  const profile = profileData?.[0] ?? null;
+
+  if (!profile) {
+    throw new ApiError(404, 'Failed to fetch profile');
   }
 
   // Remove the portfolio item
@@ -504,14 +556,19 @@ export const addFreelancerExperience = async (
   }
 ): Promise<void> => {
   // First, get current work experience
-  const { data: profile, error: fetchError } = await supabase
+  const { data: profileData, error: fetchError } = await supabase
     .from('freelancer_profiles')
     .select('work_experience')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
   if (fetchError) {
     throw new ApiError(500, `Failed to fetch profile: ${fetchError.message}`);
+  }
+
+  const profile = profileData?.[0] ?? null;
+
+  if (!profile) {
+    throw new ApiError(404, 'Failed to fetch profile');
   }
 
   // Add new experience to the array

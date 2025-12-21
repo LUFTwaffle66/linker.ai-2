@@ -2,7 +2,7 @@
 -- 1. CONVERSATIONS TABLE
 -- =============================================
 CREATE TABLE conversations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   last_message_id UUID -- Can be null if no messages yet
@@ -24,7 +24,7 @@ CREATE TABLE conversation_participants (
 -- 3. MESSAGES TABLE
 -- =============================================
 CREATE TABLE messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
@@ -52,12 +52,7 @@ CREATE POLICY "Users can view conversations they are a part of"
 
 CREATE POLICY "Users can create conversations"
   ON conversations FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM conversation_participants
-      WHERE conversation_id = id AND user_id = auth.uid()
-    )
-  );
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Policies for conversation_participants
 CREATE POLICY "Users can view their own participant records"
@@ -66,7 +61,7 @@ CREATE POLICY "Users can view their own participant records"
 
 CREATE POLICY "Users can be added to conversations"
   ON conversation_participants FOR INSERT
-  WITH CHECK (true); -- Further checks should be handled by application logic
+  WITH CHECK (auth.uid() = user_id); -- Further checks should be handled by application logic
 
 -- Policies for messages
 CREATE POLICY "Users can view messages in conversations they are a part of"

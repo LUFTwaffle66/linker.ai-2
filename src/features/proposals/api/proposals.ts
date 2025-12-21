@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { createNotification } from '@/features/notifications/api/notifications';
 import { paths } from '@/config/paths';
 import type { ProposalFormData } from '../types';
+import { formatDurationLabel } from '../utils/duration';
 
 /**
  * Proposal data types
@@ -13,9 +14,12 @@ export interface Proposal {
   cover_letter: string;
   total_budget: number;
   timeline: string;
+  duration_value?: number | null;
+  duration_unit?: 'days' | 'weeks' | 'months' | null;
   status: 'submitted' | 'under_review' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn';
   viewed_by_client: boolean;
   client_feedback: string | null;
+  attachments?: any[];
   created_at: string;
   updated_at: string;
 }
@@ -47,7 +51,9 @@ export interface CreateProposalParams {
   projectId: string;
   coverLetter: string;
   totalBudget: string;
-  timeline: string;
+  duration_value: number;
+  duration_unit: 'days' | 'weeks' | 'months';
+  timeline?: string;
   attachments?: any[];
 }
 
@@ -55,6 +61,8 @@ export interface UpdateProposalParams {
   cover_letter?: string;
   total_budget?: number;
   timeline?: string;
+  duration_value?: number | null;
+  duration_unit?: 'days' | 'weeks' | 'months' | null;
   status?: 'submitted' | 'under_review' | 'shortlisted' | 'accepted' | 'rejected' | 'withdrawn';
   viewed_by_client?: boolean;
   client_feedback?: string;
@@ -73,6 +81,7 @@ export async function fetchProjectProposals(projectId: string) {
         full_name,
         avatar_url
       ),
+      attachments,
       project:projects!proposals_project_id_fkey(
         id,
         title,
@@ -114,6 +123,7 @@ export async function fetchFreelancerProposals(freelancerId: string) {
         full_name,
         avatar_url
       ),
+      attachments,
       project:projects!proposals_project_id_fkey(
         id,
         title,
@@ -155,6 +165,7 @@ export async function fetchProposalById(proposalId: string) {
         full_name,
         avatar_url
       ),
+      attachments,
       project:projects!proposals_project_id_fkey(
         id,
         title,
@@ -172,9 +183,12 @@ export async function fetchProposalById(proposalId: string) {
       )
     `)
     .eq('id', proposalId)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
+
+  // Return null if no proposal is found
+  if (!data) return null;
 
   // Flatten the client data from project
   return {
@@ -187,7 +201,8 @@ export async function fetchProposalById(proposalId: string) {
  * Create a new proposal
  */
 export async function createProposal(params: CreateProposalParams) {
-  const { projectId, coverLetter, totalBudget, timeline } = params;
+  const { projectId, coverLetter, totalBudget, duration_value, duration_unit, timeline } = params;
+  const formattedTimeline = timeline || formatDurationLabel(duration_value, duration_unit);
 
   // Get current user
   const {
@@ -196,25 +211,35 @@ export async function createProposal(params: CreateProposalParams) {
   if (!user) throw new Error('User not authenticated');
 
   // Check if user already submitted a proposal for this project
-  const { data: existingProposal } = await supabase
-    .from('proposals')
-    .select('id')
-    .eq('project_id', projectId)
-    .eq('freelancer_id', user.id)
-    .single();
+  // Check if user already submitted a proposal for this project
+const { data: existingProposal, error } = await supabase
+  .from('proposals')
+  .select('id')
+  .eq('project_id', projectId)
+  .eq('freelancer_id', user.id)
+  .maybeSingle();
 
-  if (existingProposal) {
-    throw new Error('You have already submitted a proposal for this project');
-  }
+// Unexpected database error
+if (error) {
+  console.error(error);
+  throw new Error('Failed to check existing proposals');
+}
 
-  const { data, error } = await supabase
+// Proposal already exists
+if (existingProposal) {
+  throw new Error('You have already submitted a proposal for this project');
+}
+
+  const { data, error: insertError } = await supabase
     .from('proposals')
     .insert({
       project_id: projectId,
       freelancer_id: user.id,
       cover_letter: coverLetter,
       total_budget: parseFloat(totalBudget),
-      timeline,
+      timeline: formattedTimeline,
+      duration_value,
+      duration_unit,
     })
     .select(`
       *,
@@ -242,7 +267,7 @@ export async function createProposal(params: CreateProposalParams) {
     `)
     .single();
 
-  if (error) throw error;
+  if (insertError) throw insertError;
 
   // Send notification to client
   try {
@@ -259,7 +284,9 @@ export async function createProposal(params: CreateProposalParams) {
         freelancer_name: data.freelancer.full_name,
         project_title: data.project.title,
         budget: parseFloat(totalBudget),
-        timeline,
+        timeline: formattedTimeline,
+        duration_value,
+        duration_unit,
       },
       action_url: paths.app.projectDetail.getHref(projectId),
     });
@@ -279,9 +306,15 @@ export async function createProposal(params: CreateProposalParams) {
  * Update an existing proposal
  */
 export async function updateProposal(proposalId: string, params: UpdateProposalParams) {
+  const updateData = { ...params };
+
+  if (!updateData.timeline && (updateData.duration_value || updateData.duration_unit)) {
+    updateData.timeline = formatDurationLabel(updateData.duration_value ?? undefined, updateData.duration_unit ?? undefined);
+  }
+
   const { data, error } = await supabase
     .from('proposals')
-    .update(params)
+    .update(updateData)
     .eq('id', proposalId)
     .select(`
       *,
@@ -348,6 +381,8 @@ export async function acceptProposal(proposalId: string, clientFeedback?: string
     status: 'accepted',
     client_feedback: clientFeedback,
   });
+
+  if (!proposal) throw new Error('Proposal not found or could not be updated.');
 
   // Also update the project to mark this freelancer as hired
   await supabase
@@ -438,6 +473,8 @@ export async function rejectProposal(proposalId: string, clientFeedback?: string
     status: 'rejected',
     client_feedback: clientFeedback,
   });
+
+  if (!proposal) throw new Error('Proposal not found or could not be updated.');
 
   // Send notification to freelancer
   try {

@@ -7,7 +7,7 @@
 -- =============================================
 CREATE TABLE IF NOT EXISTS projects (
   -- Primary identifier
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Foreign key to client
   client_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -86,7 +86,7 @@ CREATE TRIGGER project_published_at_trigger
 -- =============================================
 CREATE TABLE IF NOT EXISTS proposals (
   -- Primary identifier
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Foreign keys
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

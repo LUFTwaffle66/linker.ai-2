@@ -23,15 +23,27 @@ import {
   useRejectProposal,
   useShortlistProposal,
 } from '@/features/proposals/hooks/use-proposals';
-import { Check, X, Star, DollarSign, Calendar, MessageSquare, Eye } from 'lucide-react';
+import {
+  Check,
+  X,
+  Star,
+  DollarSign,
+  Calendar,
+  MessageSquare,
+  Eye,
+  Paperclip,
+  Download,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { ProposalWithDetails } from '@/features/proposals/api/proposals';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { calculateTimeLeft, formatDurationLabel } from '@/features/proposals/utils/duration';
 
 interface ProjectProposalsTabProps {
   projectId: string;
   isClient: boolean;
+  onProposalAccepted?: () => void;
 }
 
 const statusConfig = {
@@ -43,8 +55,12 @@ const statusConfig = {
   withdrawn: { label: 'Withdrawn', color: 'bg-gray-500' },
 } as const;
 
-export function ProjectProposalsTab({ projectId, isClient }: ProjectProposalsTabProps) {
-  const { data: proposals, isLoading } = useProjectProposals(projectId);
+export function ProjectProposalsTab({
+  projectId,
+  isClient,
+  onProposalAccepted,
+}: ProjectProposalsTabProps) {
+  const { data: proposals, isLoading, isError, error } = useProjectProposals(projectId);
   const { data: stats } = useProposalStats(projectId);
   const acceptMutation = useAcceptProposal();
   const rejectMutation = useRejectProposal();
@@ -63,6 +79,7 @@ export function ProjectProposalsTab({ projectId, isClient }: ProjectProposalsTab
           setSelectedProposal(null);
           setActionType(null);
           setFeedback('');
+          onProposalAccepted?.();
         },
       }
     );
@@ -89,10 +106,19 @@ export function ProjectProposalsTab({ projectId, isClient }: ProjectProposalsTab
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-48" />
-        ))}
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48" />)}
       </div>
+    );
+  }
+
+  // NEW: Add an Error State
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Failed to load proposals: {(error as Error).message}
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -157,6 +183,14 @@ export function ProjectProposalsTab({ projectId, isClient }: ProjectProposalsTab
         {proposals.map((proposal) => {
           const status = statusConfig[proposal.status];
           const submittedAt = formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true });
+          const durationLabel =
+            formatDurationLabel(proposal.duration_value, proposal.duration_unit) || proposal.timeline;
+          const timeLeft = calculateTimeLeft(
+            proposal.duration_value,
+            proposal.duration_unit,
+            proposal.created_at
+          );
+          const attachments = (proposal as any).attachments || [];
 
           return (
             <Card key={proposal.id} className="hover:shadow-md transition-shadow">
@@ -198,7 +232,14 @@ export function ProjectProposalsTab({ projectId, isClient }: ProjectProposalsTab
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span>{proposal.timeline}</span>
+                    <div className="flex items-center gap-2">
+                      <span>{durationLabel || 'Timeline not provided'}</span>
+                      {timeLeft && (
+                        <Badge variant="outline" className="text-xs">
+                          {timeLeft.relativeText}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -211,6 +252,60 @@ export function ProjectProposalsTab({ projectId, isClient }: ProjectProposalsTab
                     {proposal.cover_letter}
                   </p>
                 </div>
+
+                {/* Attachments */}
+                {attachments.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Paperclip className="w-4 h-4" />
+                        Attachments
+                      </h4>
+                      <div className="space-y-2">
+                        {attachments.map((file: any, index: number) => {
+                          const fileName =
+                            file?.name ||
+                            file?.file_name ||
+                            file?.filename ||
+                            file?.title ||
+                            `Attachment ${index + 1}`;
+                          const fileUrl = file?.url || file?.publicUrl || file?.path || file?.signedUrl;
+                          const fileSize = file?.size || file?.file_size || file?.bytes;
+
+                          return (
+                            <a
+                              key={fileName + index}
+                              href={fileUrl || undefined}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted transition-colors"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="text-sm truncate">{fileName}</span>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                {fileSize && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {typeof fileSize === 'number'
+                                      ? `${(fileSize / 1024).toFixed(1)} KB`
+                                      : fileSize}
+                                  </span>
+                                )}
+                                {fileUrl && (
+                                  <Button variant="ghost" size="sm">
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Client Feedback (if any) */}
                 {proposal.client_feedback && (

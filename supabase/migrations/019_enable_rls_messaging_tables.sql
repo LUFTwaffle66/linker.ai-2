@@ -281,7 +281,7 @@ BEGIN
   IF v_conversation_id IS NULL THEN
     -- Create new conversation
     INSERT INTO conversations (id, created_at, updated_at)
-    VALUES (uuid_generate_v4(), NOW(), NOW())
+    VALUES (gen_random_uuid(), NOW(), NOW())
     RETURNING id INTO v_conversation_id;
 
     -- Add both participants

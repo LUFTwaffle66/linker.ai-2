@@ -107,7 +107,7 @@ export function ProjectsClient() {
 
         {/* Projects List */}
         {projects && projects.length > 0 ? (
-          <ProjectsList projects={projects} />
+          <ProjectsList projects={projects} currentUserId={user?.id} />
         ) : (
           <div className="text-center py-12 border-2 border-dashed rounded-lg">
             <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />

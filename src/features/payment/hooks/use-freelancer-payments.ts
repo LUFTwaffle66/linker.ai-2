@@ -1,15 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   getFreelancerEarnings,
   getFreelancerContracts,
   getFreelancerTransactions,
-  withdrawFunds,
 } from '../api/payment';
-import type { WithdrawalFormData } from '../types';
+import type { ActiveContract, FreelancerEarnings, Transaction } from '../types';
 import { paymentKeys } from './use-shared-payments';
 
 export function useFreelancerEarnings() {
-  return useQuery({
+  return useQuery<FreelancerEarnings>({
     queryKey: paymentKeys.freelancerEarnings(),
     queryFn: getFreelancerEarnings,
     staleTime: 1 * 60 * 1000,
@@ -18,7 +17,7 @@ export function useFreelancerEarnings() {
 }
 
 export function useFreelancerContracts() {
-  return useQuery({
+  return useQuery<ActiveContract[]>({
     queryKey: paymentKeys.freelancerContracts(),
     queryFn: getFreelancerContracts,
     staleTime: 1 * 60 * 1000,
@@ -27,24 +26,10 @@ export function useFreelancerContracts() {
 }
 
 export function useFreelancerTransactions() {
-  return useQuery({
+  return useQuery<Transaction[]>({
     queryKey: paymentKeys.freelancerTransactions(),
     queryFn: getFreelancerTransactions,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
-  });
-}
-
-export function useWithdrawFunds() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: WithdrawalFormData) => withdrawFunds(data),
-    onSuccess: (newTransaction) => {
-      queryClient.setQueryData(paymentKeys.freelancerTransactions(), (old: any) => {
-        if (!old) return [newTransaction];
-        return [newTransaction, ...old];
-      });
-      queryClient.invalidateQueries({ queryKey: paymentKeys.freelancerEarnings() });
-    },
   });
 }

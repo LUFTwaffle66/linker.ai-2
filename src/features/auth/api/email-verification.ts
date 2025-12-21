@@ -50,17 +50,27 @@ export async function checkEmailVerified() {
  */
 export async function checkOnboardingStatus(userId: string) {
   // Check if user has a profile in either client_profiles or freelancer_profiles
-  const { data: clientProfile } = await supabase
+  const { data: clientProfileData, error: clientProfileError } = await supabase
     .from('client_profiles')
     .select('user_id')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
-  const { data: freelancerProfile } = await supabase
+  if (clientProfileError) {
+    throw new Error(clientProfileError.message);
+  }
+
+  const clientProfile = clientProfileData?.[0] ?? null;
+
+  const { data: freelancerProfileData, error: freelancerProfileError } = await supabase
     .from('freelancer_profiles')
     .select('user_id')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
+
+  if (freelancerProfileError) {
+    throw new Error(freelancerProfileError.message);
+  }
+
+  const freelancerProfile = freelancerProfileData?.[0] ?? null;
 
   const hasProfile = !!(clientProfile || freelancerProfile);
 

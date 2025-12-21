@@ -26,6 +26,10 @@ export interface Project {
   updated_at: string;
   published_at: string | null;
   closed_at: string | null;
+  upfront_paid?: boolean;
+  final_paid?: boolean;
+  upfront_date?: string | null;
+  final_date?: string | null;
 }
 
 export interface ProjectWithClient extends Project {
@@ -35,6 +39,10 @@ export interface ProjectWithClient extends Project {
     company_name: string | null;
     avatar_url: string | null;
   };
+  proposals?: {
+    total_budget: number;
+    status: string;
+  }[];
 }
 
 export interface CreateProjectParams {
@@ -99,6 +107,10 @@ export async function fetchClientProjects(clientId: string) {
         full_name,
         company_name,
         avatar_url
+      ),
+      proposals:proposals!proposals_project_id_fkey(
+        total_budget,
+        status
       )
     `)
     .eq('client_id', clientId)
@@ -387,6 +399,10 @@ export async function fetchFreelancerProjects(freelancerId: string) {
         full_name,
         company_name,
         avatar_url
+      ),
+      proposals:proposals!proposals_project_id_fkey(
+        total_budget,
+        status
       )
     `)
     .eq('hired_freelancer_id', freelancerId)

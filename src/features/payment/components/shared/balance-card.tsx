@@ -1,16 +1,14 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 
 interface BalanceCardProps {
   title: string;
   amount: number;
   icon: React.ReactNode;
   footerText?: string;
-  onAddFunds?: () => void;
+  helperText?: string;
 }
 
-export function BalanceCard({ title, amount, icon, footerText, onAddFunds }: BalanceCardProps) {
+export function BalanceCard({ title, amount, icon, footerText, helperText }: BalanceCardProps) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -20,12 +18,7 @@ export function BalanceCard({ title, amount, icon, footerText, onAddFunds }: Bal
         </div>
         <p className="text-3xl mb-1">${amount.toLocaleString()}</p>
         {footerText && <p className="text-xs text-muted-foreground">{footerText}</p>}
-        {onAddFunds && (
-          <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={onAddFunds}>
-            <Plus className="w-3 h-3 mr-1" />
-            Add Funds
-          </Button>
-        )}
+        {helperText && <p className="text-xs text-muted-foreground mt-1">{helperText}</p>}
       </CardContent>
     </Card>
   );

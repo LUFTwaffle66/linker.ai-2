@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Send, Paperclip, X, File, Download } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useAuth } from '@/features/auth/lib/auth-client';
 import { useProjectMessages, useSendProjectMessage } from '../api/get-project-messages';
 import { toast } from 'sonner';
 
@@ -20,6 +21,7 @@ export function ProjectMessagesTab({ projectId }: ProjectMessagesTabProps) {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { user } = useAuth();
   const { data: messages, isLoading } = useProjectMessages(projectId);
   const sendMessage = useSendProjectMessage();
 
@@ -76,60 +78,62 @@ export function ProjectMessagesTab({ projectId }: ProjectMessagesTabProps) {
         {/* Messages Area */}
         <ScrollArea className="h-[500px] pr-4">
           <div className="space-y-4">
-            {messages?.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${message.sender === 'freelancer' ? 'flex-row-reverse' : ''}`}
-              >
-                <Avatar className="w-8 h-8 flex-shrink-0">
-                  <AvatarFallback className="text-xs">{message.avatar}</AvatarFallback>
-                </Avatar>
+            {messages?.map((message) => {
+              const isOwn = (message as any).senderRole === user?.role;
 
+              return (
                 <div
-                  className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${
-                    message.sender === 'freelancer' ? 'items-end' : ''
-                  }`}
+                  key={message.id}
+                  className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium">{message.senderName}</span>
-                    <span className="text-xs text-muted-foreground">{message.senderRole}</span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs text-muted-foreground">{message.timestamp}</span>
-                  </div>
+                  <Avatar className="w-8 h-8 flex-shrink-0">
+                    <AvatarFallback className="text-xs">{message.avatar}</AvatarFallback>
+                  </Avatar>
 
-                  {message.type === 'text' ? (
-                    <div
-                      className={`rounded-lg px-4 py-2 ${
-                        message.sender === 'freelancer'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                  <div
+                    className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${
+                      isOwn ? 'items-end' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-medium">{message.senderName}</span>
+                      <span className="text-xs text-muted-foreground">{message.senderRole}</span>
+                      <span className="text-xs text-muted-foreground">•</span>
+                      <span className="text-xs text-muted-foreground">{message.timestamp}</span>
                     </div>
-                  ) : (
-                    <div
-                      className={`rounded-lg border p-3 bg-background ${
-                        message.sender === 'freelancer' ? 'border-primary' : 'border-border'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                          <File className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{message.fileName}</p>
-                          <p className="text-xs text-muted-foreground">{message.fileSize}</p>
-                        </div>
-                        <Button variant="ghost" size="sm" className="flex-shrink-0">
-                          <Download className="w-4 h-4" />
-                        </Button>
+
+                    {message.type === 'text' ? (
+                      <div
+                        className={`rounded-lg px-4 py-2 ${
+                          isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div
+                        className={`rounded-lg p-3 ${
+                          isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                            <File className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{message.fileName}</p>
+                            <p className="text-xs text-muted-foreground">{message.fileSize}</p>
+                          </div>
+                          <Button variant="ghost" size="sm" className="flex-shrink-0">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </ScrollArea>
 

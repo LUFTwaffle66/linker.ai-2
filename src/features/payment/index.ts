@@ -2,21 +2,11 @@ export {
   useFreelancerEarnings,
   useFreelancerContracts,
   useFreelancerTransactions,
-  useWithdrawFunds,
-  useClientBalance,
-  useClientProjects,
-  useClientTransactions,
-  useAddFunds,
-  useReleaseFinalPayment,
-  usePaymentMethods,
-  useAddPaymentMethod,
-  useTaxDocuments,
+  useFreelancerStripeAccount,
   paymentKeys,
 } from './hooks';
 
 export type {
-  PaymentMethod,
-  PaymentMethodType,
   FreelancerEarnings,
   ClientBalance,
   Transaction,
@@ -24,33 +14,16 @@ export type {
   TransactionStatus,
   ActiveContract,
   ContractStatus,
-  TaxDocument,
-  WithdrawalFormData,
-  AddFundsFormData,
-  AddPaymentMethodFormData,
-  ReleaseFinalPaymentFormData,
-} from './types';
-
-export {
-  withdrawalSchema,
-  addFundsSchema,
-  addPaymentMethodSchema,
-  releaseFinalPaymentSchema,
 } from './types';
 
 export {
   getFreelancerEarnings,
   getFreelancerContracts,
   getFreelancerTransactions,
-  withdrawFunds,
   getClientBalance,
   getClientProjects,
   getClientTransactions,
-  addFunds,
-  releaseFinalPayment,
-  getPaymentMethods,
-  addPaymentMethod,
-  getTaxDocuments,
+  getFreelancerStripeAccount,
 } from './api/payment';
 
 // Components

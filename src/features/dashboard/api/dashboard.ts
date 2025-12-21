@@ -2,17 +2,23 @@ import { supabase } from '@/lib/supabase';
 import type { FreelancerDashboardData } from '../components/freelancer-dashboard';
 import type { ClientDashboardData } from '../components/client-dashboard';
 import type { ActivityItem } from '../components/recent-activity-card';
+import { calculateTimeLeft, formatDurationLabel } from '@/features/proposals/utils/duration';
 
 /**
  * Fetch freelancer dashboard data
  */
 export async function getFreelancerDashboard(userId: string): Promise<FreelancerDashboardData> {
   // Fetch freelancer profile
-  const { data: profile } = await supabase
+  const { data: profileData, error: profileError } = await supabase
     .from('freelancer_profiles')
     .select('*')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  const profile = profileData?.[0] ?? null;
 
   // Fetch proposals
   const { data: proposals } = await supabase
@@ -63,7 +69,10 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
       title: p.project?.title || 'Unknown Project',
       client: p.project?.client?.full_name || 'Client',
       budget: p.total_budget,
-      deadline: p.timeline,
+      deadline:
+        calculateTimeLeft(p.duration_value, p.duration_unit, p.created_at)?.relativeText ||
+        formatDurationLabel(p.duration_value, p.duration_unit) ||
+        p.timeline,
       progress: 50, // Mock progress
     }));
 
@@ -85,11 +94,16 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
  */
 export async function getClientDashboard(userId: string): Promise<ClientDashboardData> {
   // Fetch client profile
-  const { data: profile } = await supabase
+  const { data: profileData, error: profileError } = await supabase
     .from('client_profiles')
     .select('*')
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  const profile = profileData?.[0] ?? null;
 
   // Fetch projects
   const { data: projects } = await supabase

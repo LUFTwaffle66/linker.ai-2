@@ -6,7 +6,7 @@
 -- 1. CLIENT PROFILES TABLE
 -- =============================================
 CREATE TABLE client_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
   -- Profile Information
@@ -48,7 +48,7 @@ CREATE TRIGGER update_client_profiles_updated_at
 -- 2. FREELANCER PROFILES TABLE
 -- =============================================
 CREATE TABLE freelancer_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
   -- Profile Information

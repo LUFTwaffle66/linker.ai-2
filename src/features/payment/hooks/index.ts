@@ -2,20 +2,8 @@ export {
   useFreelancerEarnings,
   useFreelancerContracts,
   useFreelancerTransactions,
-  useWithdrawFunds,
 } from './use-freelancer-payments';
 
-export {
-  useClientBalance,
-  useClientProjects,
-  useClientTransactions,
-  useAddFunds,
-  useReleaseFinalPayment,
-} from './use-client-payments';
+export { paymentKeys } from './use-shared-payments';
 
-export {
-  usePaymentMethods,
-  useAddPaymentMethod,
-  useTaxDocuments,
-  paymentKeys,
-} from './use-shared-payments';
+export { useFreelancerStripeAccount } from './use-freelancer-stripe-account';

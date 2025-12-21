@@ -29,7 +29,8 @@ interface SubmitProposalFormProps {
 const FORM_DEFAULT_VALUES: ProposalFormData = {
   coverLetter: '',
   totalBudget: '',
-  timeline: '',
+  duration_value: 1,
+  duration_unit: 'weeks',
   attachments: [],
 };
 
@@ -65,7 +66,8 @@ export function SubmitProposalForm({ project, onProposalSubmitted }: SubmitPropo
         projectId: project.id,
         coverLetter: data.coverLetter,
         totalBudget: data.totalBudget,
-        timeline: data.timeline,
+        duration_value: data.duration_value,
+        duration_unit: data.duration_unit,
         attachments: data.attachments || [],
       });
 
