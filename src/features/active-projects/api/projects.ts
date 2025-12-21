@@ -79,7 +79,7 @@ export const getProject = async (projectId: string): Promise<ProjectInfo> => {
   // Use payment transactions as the source of truth for payment status
   const { data: paymentTransactions, error: paymentTxError } = await supabase
     .from('payment_transactions')
-    .select('status, type, description, created_at, amount')
+    .select('id, status, type, description, created_at, amount')
     .eq('project_id', projectId);
 
   if (paymentTxError) {
@@ -100,7 +100,6 @@ export const getProject = async (projectId: string): Promise<ProjectInfo> => {
     project: data,
     paymentIntents,
     paymentTransactions,
-    deliverables,
     agreedBudgetOverride: freelancerBidAmount,
   });
 
@@ -124,8 +123,8 @@ export const getProject = async (projectId: string): Promise<ProjectInfo> => {
     startDate: data.created_at,
     deadline: data.timeline,
     progress: derivedSnapshot.progress,
-    status: derivedSnapshot.status,
-    attachments: data.attachments || [],
+    status: derivedSnapshot.status as ProjectInfo['status'],
+    attachments: (data.attachments ?? []) as any[],
     deliverables: [], // TODO: Add when milestones table is ready
   };
 

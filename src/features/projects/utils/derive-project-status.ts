@@ -1,5 +1,12 @@
 // src/features/projects/utils/derive-project-status.ts
 
+// 1. Defined a basic type for Deliverables to avoid "implicit any"
+export type DeliverableRow = {
+  id: string;
+  status?: string;
+  [key: string]: unknown;
+};
+
 export type ProposalRow = {
   id: string;
   freelancer_id: string;
@@ -10,7 +17,7 @@ export type ProposalRow = {
 export type ProjectRow = {
   id: string;
 
-  // DB columns you mentioned you added
+  // DB columns
   upfront_paid?: boolean | null;
   final_paid?: boolean | null;
   upfront_paid_date?: string | null;
@@ -25,6 +32,9 @@ export type ProjectRow = {
 
   // progress is used in UI gating
   progress?: number | null;
+
+  // optional status from DB (if present)
+  status?: string | null;
 };
 
 export type PaymentIntentRow = {
@@ -37,8 +47,22 @@ export type PaymentIntentRow = {
   created_at?: string | null;
 };
 
+export type PaymentTransactionRow = {
+  id: string;
+  type?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
 export type DerivedProjectSnapshot = {
   // money (display in dollars)
+  budget: number;
+  progress: number;
+  status: 'needs_upfront' | 'in_progress' | 'needs_final' | 'completed';
+
   totalBudget: number;
   upfrontAmount: number;
   finalAmount: number;
@@ -48,8 +72,8 @@ export type DerivedProjectSnapshot = {
   finalPaid: boolean;
 
   // optional dates for UI
-  upfrontDate?: string | null;
-  finalDate?: string | null;
+  upfrontDate?: string;
+  finalDate?: string;
 
   // derived totals (in dollars)
   received: number;
@@ -66,23 +90,32 @@ export type DeriveProjectParams = {
   project: ProjectRow;
   proposals?: ProposalRow[] | null;
   paymentIntents?: PaymentIntentRow[] | null;
+  paymentTransactions?: PaymentTransactionRow[] | null;
+  deliverables?: DeliverableRow[] | null; // <--- ADDED THIS (Fixed the build error)
   agreedBudgetOverride?: number | null;
 };
 
 /**
- * Derives a stable snapshot used by UI, without relying on "escrow language".
- * - Null-safe
- * - No implicit any
- * - Always returns a value
+ * Derives a stable snapshot used by UI.
  */
 export function deriveProjectStatus({
   project,
   proposals,
   paymentIntents,
+  paymentTransactions,
+  deliverables, // <--- ADDED THIS to destructuring
   agreedBudgetOverride,
 }: DeriveProjectParams): DerivedProjectSnapshot {
   const safeProposals: ProposalRow[] = proposals ?? [];
   const safePaymentIntents: PaymentIntentRow[] = paymentIntents ?? [];
+  
+  // These are available for future logic if you need them:
+  const _safePaymentTransactions = paymentTransactions ?? [];
+  const _safeDeliverables = deliverables ?? [];
+  
+  // We explicitly "void" them to tell the linter "we know they are unused, it's okay"
+  void _safePaymentTransactions; 
+  void _safeDeliverables; 
 
   const acceptedProposal = safeProposals.find(
     (p: ProposalRow) =>
@@ -90,10 +123,7 @@ export function deriveProjectStatus({
       (!!project.hired_freelancer_id && p.freelancer_id === project.hired_freelancer_id)
   );
 
-  // Budget resolution priority:
-  // 1) agreedBudgetOverride (explicit)
-  // 2) accepted proposal budget
-  // 3) project.fixed_budget / project.budget
+  // Budget resolution priority
   const totalBudget =
     Number(agreedBudgetOverride ?? acceptedProposal?.budget ?? project.fixed_budget ?? project.budget ?? 0) || 0;
 
@@ -104,11 +134,17 @@ export function deriveProjectStatus({
   const upfrontPaid = Boolean(project.upfront_paid);
   const finalPaid = Boolean(project.final_paid);
 
-  // Derive received/pending in milestone model (not escrow)
+  const progress = Number(project.progress ?? 0) || 0;
+
+  const status: DerivedProjectSnapshot['status'] = finalPaid
+    ? 'completed'
+    : upfrontPaid
+      ? (progress >= 90 ? 'needs_final' : 'in_progress')
+      : 'needs_upfront';
+
   const received = (upfrontPaid ? upfrontAmount : 0) + (finalPaid ? finalAmount : 0);
   const pending = Math.max(totalBudget - received, 0);
 
-  // Optional: last PI status for debugging/labels
   const lastPi = safePaymentIntents
     .slice()
     .sort((a: PaymentIntentRow, b: PaymentIntentRow) => {
@@ -118,6 +154,10 @@ export function deriveProjectStatus({
     })[0];
 
   return {
+    budget: totalBudget,
+    progress,
+    status,
+
     totalBudget,
     upfrontAmount,
     finalAmount,
@@ -125,8 +165,8 @@ export function deriveProjectStatus({
     upfrontPaid,
     finalPaid,
 
-    upfrontDate: project.upfront_paid_date ?? null,
-    finalDate: project.final_paid_date ?? null,
+    upfrontDate: project.upfront_paid_date ?? undefined,
+    finalDate: project.final_paid_date ?? undefined,
 
     received,
     pending,
