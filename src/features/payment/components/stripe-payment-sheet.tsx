@@ -8,6 +8,7 @@ import { getStripe } from '@/lib/stripe/stripe-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { dashboardKeys } from '@/features/dashboard/hooks/use-dashboard';
 
 interface StripePaymentSheetProps {
   clientSecret: string;
@@ -69,6 +70,7 @@ export function StripePaymentSheet({
   const handleSuccess = () => {
     if (projectId) {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
     }
     onSuccess?.();
     onClose?.();

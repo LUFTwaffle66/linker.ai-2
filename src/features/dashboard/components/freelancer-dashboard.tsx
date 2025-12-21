@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 import { paths } from '@/config/paths';
+import type { ProjectStatus } from '@/features/active-projects/types';
 
 export interface FreelancerDashboardData {
   totalEarnings: number;
@@ -31,6 +32,7 @@ export interface FreelancerDashboardData {
     budget: number;
     deadline: string;
     progress: number;
+    status: ProjectStatus;
   }>;
 }
 
@@ -41,6 +43,15 @@ interface FreelancerDashboardProps {
 
 export function FreelancerDashboard({ data, isLoading }: FreelancerDashboardProps) {
   const router = useRouter();
+  const statusStyles: Record<ProjectStatus, string> = {
+    pending: 'bg-yellow-500/10 text-yellow-600',
+    'in-progress': 'bg-blue-500/10 text-blue-600',
+    completed: 'bg-green-500/10 text-green-600',
+    cancelled: 'bg-red-500/10 text-red-600',
+  };
+
+  const formatStatus = (status: ProjectStatus) =>
+    status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1);
 
   if (isLoading) {
     return (
@@ -123,16 +134,21 @@ export function FreelancerDashboard({ data, isLoading }: FreelancerDashboardProp
                           Client: {project.client}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="ml-2">
-                        ${project.budget.toLocaleString()}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="secondary" className="ml-2">
+                          ${project.budget.toLocaleString()}
+                        </Badge>
+                        <Badge variant="outline" className={statusStyles[project.status]}>
+                          {formatStatus(project.status)}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         Due: {project.deadline}
                       </span>
-                      <span>{project.progress}% complete</span>
+                      <span>Payment: {project.progress}%</span>
                     </div>
                     <div className="w-full bg-muted h-1.5 rounded-full mt-2">
                       <div

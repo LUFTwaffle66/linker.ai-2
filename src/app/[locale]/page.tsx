@@ -7,12 +7,13 @@ import { getServerUser } from '@/features/auth/lib/supabase-auth-server';
 export default async function LocaleHome({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  const resolvedParams = await params;
   const user = await getServerUser();
 
   if (user) {
-    redirect(`/${params.locale}/dashboard`);
+    redirect(`/${resolvedParams.locale}/dashboard`);
   }
 
   return (

@@ -18,6 +18,7 @@ import {
   type UpdateProposalParams,
 } from '../api/proposals';
 import { projectKeys } from '@/features/projects/hooks/use-projects';
+import { dashboardKeys } from '@/features/dashboard/hooks/use-dashboard';
 
 /**
  * Query keys for proposals
@@ -221,6 +222,7 @@ export function useAcceptProposal() {
       queryClient.invalidateQueries({ queryKey: ['project', data.project_id] });
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(data.project_id) });
       queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
 
       toast.success('Proposal accepted successfully!');
     },

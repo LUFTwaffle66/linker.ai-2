@@ -1,27 +1,19 @@
 import { supabase } from '@/lib/supabase';
+import { deriveProjectSnapshot } from '@/features/projects/utils/derive-project-status';
+import type { ProjectStatus } from '@/features/active-projects/types';
 import type { FreelancerDashboardData } from '../components/freelancer-dashboard';
 import type { ClientDashboardData } from '../components/client-dashboard';
 import type { ActivityItem } from '../components/recent-activity-card';
-import { calculateTimeLeft, formatDurationLabel } from '@/features/proposals/utils/duration';
+
+const isSuccessfulPayment = (tx: any) =>
+  tx?.type === 'payment' && (tx?.status === 'succeeded' || tx?.status === 'completed');
 
 /**
  * Fetch freelancer dashboard data
  */
 export async function getFreelancerDashboard(userId: string): Promise<FreelancerDashboardData> {
-  // Fetch freelancer profile
-  const { data: profileData, error: profileError } = await supabase
-    .from('freelancer_profiles')
-    .select('*')
-    .eq('user_id', userId);
-
-  if (profileError) {
-    throw profileError;
-  }
-
-  const profile = profileData?.[0] ?? null;
-
   // Fetch proposals
-  const { data: proposals } = await supabase
+  const { data: proposals, error: proposalsError } = await supabase
     .from('proposals')
     .select(`
       *,
@@ -30,16 +22,56 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
     .eq('freelancer_id', userId)
     .order('created_at', { ascending: false });
 
+  if (proposalsError) {
+    throw proposalsError;
+  }
+
+  // Fetch hired projects with payment + deliverable info for status parity
+  const { data: projects, error: projectsError } = await supabase
+    .from('projects')
+    .select(
+      `
+        *,
+        client:users!projects_client_id_fkey(id, full_name, company_name),
+        proposals:proposals!proposals_project_id_fkey(total_budget,status,freelancer_id),
+        payment_intents:payment_intents(*),
+        payment_transactions:payment_transactions!payment_transactions_project_id_fkey(status,type,description,created_at,amount),
+        project_deliverables:project_deliverables(status)
+      `
+    )
+    .eq('hired_freelancer_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (projectsError) {
+    throw projectsError;
+  }
+
+  const derivedProjects =
+    projects?.map((project: any) => ({
+      project,
+      derived: deriveProjectSnapshot({
+        project,
+        paymentIntents: project.payment_intents,
+        paymentTransactions: project.payment_transactions,
+        deliverables: project.project_deliverables,
+        proposals: project.proposals,
+      }),
+    })) ?? [];
+
+  const activeProjects = derivedProjects.filter(({ derived }) => derived.status !== 'completed' && derived.status !== 'cancelled').length;
+  const completedProjects = derivedProjects.filter(({ derived }) => derived.status === 'completed').length;
+
+  const totalEarnings =
+    derivedProjects.reduce((sum, { project }) => {
+      const payments = (project.payment_transactions ?? []).filter(isSuccessfulPayment);
+      return sum + payments.reduce((acc: number, tx: any) => acc + Number(tx.amount || 0), 0);
+    }, 0) / 100;
+
   // Calculate metrics
   const totalProposals = proposals?.length || 0;
   const acceptedProposals = proposals?.filter((p) => p.status === 'accepted').length || 0;
   const pendingProposals = proposals?.filter((p) => p.status === 'submitted' || p.status === 'under_review').length || 0;
   const successRate = totalProposals > 0 ? Math.round((acceptedProposals / totalProposals) * 100) : 0;
-
-  // Mock data for now (will be replaced with real data)
-  const totalEarnings = acceptedProposals * 5000; // Mock calculation
-  const activeProjects = acceptedProposals;
-  const completedProjects = 0; // TODO: Track completed projects
 
   // Recent proposals
   const recentProposals = (proposals || []).slice(0, 5).map((p: any) => ({
@@ -60,20 +92,18 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
     status: p.status,
   }));
 
-  // Active projects list (mock for now)
-  const activeProjectsList = (proposals || [])
-    .filter((p: any) => p.status === 'accepted')
+  // Active projects list using shared project state
+  const activeProjectsList = derivedProjects
+    .filter(({ derived }) => derived.status !== 'cancelled')
     .slice(0, 3)
-    .map((p: any) => ({
-      id: p.project?.id || '',
-      title: p.project?.title || 'Unknown Project',
-      client: p.project?.client?.full_name || 'Client',
-      budget: p.total_budget,
-      deadline:
-        calculateTimeLeft(p.duration_value, p.duration_unit, p.created_at)?.relativeText ||
-        formatDurationLabel(p.duration_value, p.duration_unit) ||
-        p.timeline,
-      progress: 50, // Mock progress
+    .map(({ project, derived }: { project: any; derived: { progress: number; status: ProjectStatus; budget: number } }) => ({
+      id: project.id,
+      title: project.title || 'Unknown Project',
+      client: project.client?.company_name || project.client?.full_name || 'Client',
+      budget: derived.budget,
+      deadline: project.timeline || 'No deadline set',
+      progress: derived.progress,
+      status: derived.status,
     }));
 
   return {
@@ -93,54 +123,69 @@ export async function getFreelancerDashboard(userId: string): Promise<Freelancer
  * Fetch client dashboard data
  */
 export async function getClientDashboard(userId: string): Promise<ClientDashboardData> {
-  // Fetch client profile
-  const { data: profileData, error: profileError } = await supabase
-    .from('client_profiles')
-    .select('*')
-    .eq('user_id', userId);
-
-  if (profileError) {
-    throw profileError;
-  }
-
-  const profile = profileData?.[0] ?? null;
-
   // Fetch projects
-  const { data: projects } = await supabase
+  const { data: projects, error: projectsError } = await supabase
     .from('projects')
-    .select(`
-      *,
-      proposals:proposals(
+    .select(
+      `
         *,
-        freelancer:users!freelancer_id(*)
-      )
-    `)
+        proposals:proposals(
+          *,
+          freelancer:users!freelancer_id(*)
+        ),
+        payment_intents:payment_intents(*),
+        payment_transactions:payment_transactions!payment_transactions_project_id_fkey(status,type,description,created_at,amount),
+        project_deliverables:project_deliverables(status)
+      `
+    )
     .eq('client_id', userId)
     .order('created_at', { ascending: false });
 
-  // Calculate metrics
-  const totalProjects = projects?.length || 0;
-  const activeProjects = projects?.filter((p) => p.status === 'open' || p.status === 'in_progress').length || 0;
-  const completedProjects = projects?.filter((p) => p.status === 'completed').length || 0;
+  if (projectsError) {
+    throw projectsError;
+  }
+
+  const derivedProjects =
+    projects?.map((project: any) => ({
+      project,
+      derived: deriveProjectSnapshot({
+        project,
+        paymentIntents: project.payment_intents,
+        paymentTransactions: project.payment_transactions,
+        deliverables: project.project_deliverables,
+        proposals: project.proposals,
+      }),
+    })) ?? [];
+
   const allProposals = projects?.flatMap((p: any) => p.proposals || []) || [];
+
+  // Calculate metrics
+  const activeProjects =
+    derivedProjects.filter(({ derived }) => derived.status === 'pending' || derived.status === 'in-progress').length;
+  const completedProjects = derivedProjects.filter(({ derived }) => derived.status === 'completed').length;
   const proposalsReceived = allProposals.length;
   const pendingProposals = allProposals.filter((p: any) => p.status === 'submitted' || p.status === 'under_review').length;
 
-  // Mock total spent calculation
-  const totalSpent = completedProjects * 8000; // Mock calculation
-  const totalFreelancersHired = allProposals.filter((p: any) => p.status === 'accepted').length;
+  const totalSpent =
+    derivedProjects.reduce((sum, { project }) => {
+      const payments = (project.payment_transactions ?? []).filter(isSuccessfulPayment);
+      return sum + payments.reduce((acc: number, tx: any) => acc + Number(tx.amount || 0), 0);
+    }, 0) / 100;
+
+  const totalFreelancersHired = derivedProjects.filter(({ project }) => !!project.hired_freelancer_id).length;
 
   // Active projects list
-  const activeProjectsList = (projects || [])
-    .filter((p: any) => p.status === 'open' || p.status === 'in_progress')
+  const activeProjectsList = derivedProjects
+    .filter(({ derived }) => derived.status !== 'cancelled')
     .slice(0, 3)
-    .map((p: any) => ({
-      id: p.id,
-      title: p.title,
-      budget: p.fixed_budget,
-      proposalCount: p.proposals?.length || 0,
-      status: p.status,
-      postedAt: new Date(p.created_at),
+    .map(({ project, derived }: { project: any; derived: { status: ProjectStatus; budget: number; progress: number } }) => ({
+      id: project.id,
+      title: project.title,
+      budget: derived.budget,
+      proposalCount: project.proposals?.length || 0,
+      status: derived.status,
+      paymentProgress: derived.progress,
+      postedAt: new Date(project.created_at),
     }));
 
   // Recent proposals
@@ -167,13 +212,13 @@ export async function getClientDashboard(userId: string): Promise<ClientDashboar
       type: 'proposal' as const,
       status: p.status,
     })),
-    ...(projects || []).slice(0, 5).map((p: any) => ({
-      id: p.id,
-      title: 'Project Posted',
-      description: `Your project "${p.title}" was posted`,
-      timestamp: new Date(p.created_at),
+    ...derivedProjects.slice(0, 5).map(({ project, derived }) => ({
+      id: project.id,
+      title: 'Project Updated',
+      description: `Your project "${project.title}" is now ${derived.status.replace('-', ' ')}`,
+      timestamp: new Date(project.created_at),
       type: 'project' as const,
-      status: p.status,
+      status: derived.status,
     })),
   ]
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useRouter } from '@/i18n/routing';
 import { paths } from '@/config/paths';
+import type { ProjectStatus } from '@/features/active-projects/types';
 
 export interface ClientDashboardData {
   totalSpent: number;
@@ -31,7 +32,8 @@ export interface ClientDashboardData {
     title: string;
     budget: number;
     proposalCount: number;
-    status: string;
+    status: ProjectStatus;
+    paymentProgress: number;
     postedAt: Date;
   }>;
   recentProposalsList: Array<{
@@ -53,6 +55,15 @@ interface ClientDashboardProps {
 
 export function ClientDashboard({ data, isLoading }: ClientDashboardProps) {
   const router = useRouter();
+  const statusStyles: Record<ProjectStatus, string> = {
+    pending: 'bg-yellow-500/10 text-yellow-600',
+    'in-progress': 'bg-blue-500/10 text-blue-600',
+    completed: 'bg-green-500/10 text-green-600',
+    cancelled: 'bg-red-500/10 text-red-600',
+  };
+
+  const formatStatus = (status: ProjectStatus) =>
+    status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1);
 
   if (isLoading) {
     return (
@@ -147,15 +158,9 @@ export function ClientDashboard({ data, isLoading }: ClientDashboardProps) {
                       </div>
                       <Badge
                         variant="secondary"
-                        className={
-                          project.status === 'open'
-                            ? 'bg-green-500/10 text-green-500'
-                            : project.status === 'in_progress'
-                            ? 'bg-blue-500/10 text-blue-500'
-                            : 'bg-gray-500/10 text-gray-500'
-                        }
+                        className={statusStyles[project.status]}
                       >
-                        {project.status}
+                        {formatStatus(project.status)}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
@@ -167,6 +172,18 @@ export function ClientDashboard({ data, isLoading }: ClientDashboardProps) {
                         <FileText className="w-3 h-3" />
                         {project.proposalCount} {project.proposalCount === 1 ? 'proposal' : 'proposals'}
                       </span>
+                    </div>
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                        <span>Payment progress</span>
+                        <span className="font-medium text-foreground">{project.paymentProgress}%</span>
+                      </div>
+                      <div className="w-full bg-muted h-1.5 rounded-full">
+                        <div
+                          className="bg-primary h-1.5 rounded-full"
+                          style={{ width: `${project.paymentProgress}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}

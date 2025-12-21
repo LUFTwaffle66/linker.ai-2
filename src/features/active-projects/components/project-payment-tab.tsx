@@ -16,6 +16,7 @@ import { useAuth } from '@/features/auth/lib/auth-client';
 import { format } from 'date-fns';
 import { projectKeys } from '@/features/projects/hooks/use-projects';
 import { submitDeliverable } from '../api/deliverables';
+import { dashboardKeys } from '@/features/dashboard/hooks/use-dashboard';
 import type { MilestoneType } from '../api/payments';
 
 interface ProjectPaymentTabProps {
@@ -96,6 +97,7 @@ export function ProjectPaymentTab({
     if (project?.id) {
       queryClient.invalidateQueries({ queryKey: ['project', project.id] });
       queryClient.invalidateQueries({ queryKey: projectKeys.detail(project.id) });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
     }
     router.refresh();
   }, [project?.id, queryClient, router]);
@@ -171,6 +173,7 @@ export function ProjectPaymentTab({
       if (project?.id) {
         queryClient.invalidateQueries({ queryKey: ['project', project.id] });
         queryClient.invalidateQueries({ queryKey: projectKeys.detail(project.id) });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
       setDeliveryFiles([]);
     } catch (err: any) {
