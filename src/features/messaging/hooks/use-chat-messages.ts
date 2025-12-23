@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client'; // Ensure this path is correct!
 import { useAuth } from '@/features/auth/lib/auth-client';
 import { sendMessage as sendMessageApi } from '../api/messaging';
 import type { Message } from '../types';
@@ -9,10 +9,16 @@ import type { Message } from '../types';
 export function useChatMessages(conversationId: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('DISCONNECTED');
   const { user } = useAuth();
 
   // Ref to track processed IDs to prevent duplicates
   const processedIds = useRef(new Set<string>());
+
+  // Debug: Check if the hook is even receiving the ID
+  useEffect(() => {
+    console.log('🪝 useChatMessages Hook Active. conversationId:', conversationId);
+  }, [conversationId]);
 
   // 1. Initial Load
   useEffect(() => {
@@ -20,6 +26,7 @@ export function useChatMessages(conversationId: string | null) {
 
     setLoading(true);
     const fetchMessages = async () => {
+      console.log('Fetching initial messages for:', conversationId);
       const { data, error } = await supabase
         .from('messages')
         .select('*, sender:users(id, full_name, avatar_url)')
@@ -27,15 +34,16 @@ export function useChatMessages(conversationId: string | null) {
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('Error fetching messages:', error);
+        console.error('❌ Error fetching messages:', error);
       } else {
+        console.log(`✅ Fetched ${data?.length || 0} messages`);
         const formatted = (data || []).map((msg: any) => {
           const senderUser = msg.sender
             ? {
                 id: msg.sender.id,
                 name: msg.sender.full_name,
                 avatar: msg.sender.avatar_url,
-                isOnline: false, // Assuming not online unless presence is tracked
+                isOnline: false, 
               }
             : {
                 id: msg.sender_id,
@@ -56,7 +64,6 @@ export function useChatMessages(conversationId: string | null) {
           };
         });
 
-        // Update state and cache IDs
         setMessages(formatted);
         formatted.forEach((m: any) => processedIds.current.add(m.id));
       }
@@ -66,14 +73,17 @@ export function useChatMessages(conversationId: string | null) {
     fetchMessages();
   }, [conversationId]);
 
-  // 2. Realtime Subscription (The Fix)
+  // 2. Realtime Subscription
   useEffect(() => {
     if (!conversationId) return;
 
-    console.log('🔵 Setting up Realtime for:', conversationId);
-
+    console.log('🔵 Attempting Realtime Connection for:', conversationId);
+    
+    // Create a unique channel name to avoid collisions
+    const channelName = `chat:${conversationId}`;
+    
     const channel = supabase
-      .channel(`chat:${conversationId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -83,15 +93,16 @@ export function useChatMessages(conversationId: string | null) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          console.log('🟢 REALTIME EVENT:', payload);
+          console.log('🟢 REALTIME EVENT RECEIVED:', payload);
           const newMsg = payload.new;
 
-          // Prevent duplicate events
-          if (processedIds.current.has(newMsg.id)) return;
+          if (processedIds.current.has(newMsg.id)) {
+            console.log('⚠️ Duplicate message ignored:', newMsg.id);
+            return;
+          }
           processedIds.current.add(newMsg.id);
 
-          // A. IMMEDIATE UPDATE (Optimistic)
-          // We show the message instantly with a placeholder sender
+          // Optimistic update
           const optimisticMessage: Message = {
             id: newMsg.id,
             conversationId: newMsg.conversation_id,
@@ -102,7 +113,7 @@ export function useChatMessages(conversationId: string | null) {
             attachments: [],
             sender: {
               id: newMsg.sender_id,
-              name: 'Loading...', // Temporary name
+              name: 'Loading...', 
               avatar: null,
               isOnline: false,
             },
@@ -110,7 +121,7 @@ export function useChatMessages(conversationId: string | null) {
 
           setMessages((prev) => [...prev, optimisticMessage]);
 
-          // B. FETCH REAL SENDER (Background)
+          // Fetch sender details
           const { data: userData } = await supabase
             .from('users')
             .select('full_name, avatar_url')
@@ -129,10 +140,16 @@ export function useChatMessages(conversationId: string | null) {
         }
       )
       .subscribe((status) => {
-        console.log('DATA STREAM STATUS:', status);
+        console.log(`📡 Subscription Status [${channelName}]:`, status);
+        setRealtimeStatus(status);
+        
+        if (status === 'CHANNEL_ERROR') {
+          console.error('🔴 Realtime Channel Error - Check RLS Policies or Connection');
+        }
       });
 
     return () => {
+      console.log('Cleaning up channel:', channelName);
       supabase.removeChannel(channel);
     };
   }, [conversationId]);
@@ -142,7 +159,6 @@ export function useChatMessages(conversationId: string | null) {
       if (!conversationId || !user) return;
       try {
         await sendMessageApi(conversationId, user.id, content);
-        // We don't manually append here because the Realtime subscription will catch our own message too!
       } catch (err) {
         console.error('Failed to send:', err);
       }
@@ -150,5 +166,5 @@ export function useChatMessages(conversationId: string | null) {
     [conversationId, user]
   );
 
-  return { messages, loading, sendMessage };
+  return { messages, loading, sendMessage, realtimeStatus };
 }

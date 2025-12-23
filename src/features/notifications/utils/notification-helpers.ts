@@ -239,7 +239,7 @@ export async function notifyNewMessage(params: {
     message: `${params.senderName}: ${params.messagePreview}`,
     conversation_id: params.conversationId,
     actor_id: params.senderId,
-    action_url: `/messages/${params.conversationId}`,
+    action_url: `/messages?chat_id=${params.conversationId}`,
   });
 }
 

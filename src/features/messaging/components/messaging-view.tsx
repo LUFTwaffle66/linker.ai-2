@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/lib/auth-client';
 import { ConversationList } from './conversation-list';
 import { ChatHeader } from './chat-header';
@@ -15,6 +16,8 @@ export function MessagingView() {
   const currentUserId = user?.id;
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const { messages, loading, sendMessage } = useChatMessages(activeConversation?.id ?? null);
+  const searchParams = useSearchParams();
+  const deepLinkConversationId = searchParams.get('chat_id');
 
   const handleConversationSelect = (conversation: Conversation) => {
     setActiveConversation(conversation);
@@ -52,6 +55,7 @@ export function MessagingView() {
           currentUserId={currentUserId}
           activeConversationId={activeConversation?.id || null}
           onConversationSelect={handleConversationSelect}
+          deepLinkConversationId={deepLinkConversationId}
         />
       </div>
 

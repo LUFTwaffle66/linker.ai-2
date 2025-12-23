@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,12 +12,14 @@ interface ConversationListProps {
   currentUserId: string;
   activeConversationId: string | null;
   onConversationSelect: (conversation: Conversation) => void;
+  deepLinkConversationId?: string | null;
 }
 
 export function ConversationList({
   currentUserId,
   activeConversationId,
   onConversationSelect,
+  deepLinkConversationId,
 }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -27,6 +29,15 @@ export function ConversationList({
     const otherParticipant = c.participants.find((p: any) => p.user.id !== currentUserId);
     return otherParticipant?.user.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  useEffect(() => {
+    if (!deepLinkConversationId || !conversations) return;
+    if (activeConversationId) return;
+    const match = conversations.find((c) => c.id === deepLinkConversationId);
+    if (match) {
+      onConversationSelect(match);
+    }
+  }, [deepLinkConversationId, conversations, activeConversationId, onConversationSelect]);
 
   return (
     <div className="flex flex-col h-full border-r">
