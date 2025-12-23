@@ -29,7 +29,7 @@ export function ChatHeader({ otherParticipant, conversation, onConversationDelet
       <div className="flex items-center gap-3">
         <div className="relative">
           <Avatar>
-            <AvatarImage src={otherParticipant.avatar} alt={otherParticipant.name} />
+            <AvatarImage src={otherParticipant.avatar || undefined} alt={otherParticipant.name} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           {otherParticipant.isOnline && (
