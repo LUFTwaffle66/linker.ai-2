@@ -1,81 +1,67 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/lib/auth-client';
 import { sendMessage as sendMessageApi } from '../api/messaging';
 import type { Message } from '../types';
-
-type SupabaseMessageRow = {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string;
-  created_at: string;
-  read?: boolean;
-  attachments?: any[];
-};
-
-type SupabaseUserRow = {
-  id: string;
-  full_name?: string | null;
-  avatar_url?: string | null;
-};
-
-const mapMessage = (message: SupabaseMessageRow, sender: SupabaseUserRow): Message => ({
-  id: message.id,
-  conversationId: message.conversation_id,
-  senderId: message.sender_id,
-  content: message.content,
-  created_at: message.created_at,
-  read: message.read ?? false,
-  attachments: message.attachments ?? [],
-  sender: {
-    id: sender?.id ?? message.sender_id,
-    name: sender?.full_name ?? '',
-    avatar: sender?.avatar_url ?? '',
-    isOnline: false,
-  },
-});
 
 export function useChatMessages(conversationId: string | null) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
+  // Ref to track processed IDs to prevent duplicates
+  const processedIds = useRef(new Set<string>());
+
+  // 1. Initial Load
   useEffect(() => {
-    if (!conversationId) {
-      setMessages([]);
-      setLoading(false);
-      return;
-    }
+    if (!conversationId) return;
 
-    let isMounted = true;
     setLoading(true);
-
-    const loadMessages = async () => {
+    const fetchMessages = async () => {
       const { data, error } = await supabase
         .from('messages')
-        .select('id, conversation_id, sender_id, content, created_at, sender:users(id, full_name, avatar_url)')
+        .select('*, sender:users(id, full_name, avatar_url)')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('Failed to load messages', error);
-        if (isMounted) setLoading(false);
-        return;
-      }
+        console.error('Error fetching messages:', error);
+      } else {
+        const formatted = (data || []).map((msg: any) => ({
+          id: msg.id,
+          conversationId: msg.conversation_id,
+          senderId: msg.sender_id,
+          content: msg.content,
+          created_at: msg.created_at,
+          read: msg.read || false,
+          attachments: msg.attachments || [],
+          sender: msg.sender || {
+            id: msg.sender_id,
+            name: 'Unknown',
+            avatar: null,
+          },
+        }));
 
-      if (!isMounted) return;
-      const formatted = (data || []).map((row: any) => mapMessage(row, row.sender));
-      setMessages(formatted);
+        // Update state and cache IDs
+        setMessages(formatted);
+        formatted.forEach((m: any) => processedIds.current.add(m.id));
+      }
       setLoading(false);
     };
 
-    loadMessages();
+    fetchMessages();
+  }, [conversationId]);
+
+  // 2. Realtime Subscription (The Fix)
+  useEffect(() => {
+    if (!conversationId) return;
+
+    console.log('🔵 Setting up Realtime for:', conversationId);
 
     const channel = supabase
-      .channel(`messages-conversation-${conversationId}`)
+      .channel(`chat:${conversationId}`)
       .on(
         'postgres_changes',
         {
@@ -85,65 +71,71 @@ export function useChatMessages(conversationId: string | null) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          console.log('🟢 REALTIME EVENT RECEIVED:', payload);
-          const newMessage = payload.new as SupabaseMessageRow;
+          console.log('🟢 REALTIME EVENT:', payload);
+          const newMsg = payload.new;
 
-          // Start with a safe fallback sender to avoid blocking UI updates.
-          let senderDetails: SupabaseUserRow = {
-            id: newMessage.sender_id,
-            full_name: 'Loading...',
-            avatar_url: null,
+          // Prevent duplicate events
+          if (processedIds.current.has(newMsg.id)) return;
+          processedIds.current.add(newMsg.id);
+
+          // A. IMMEDIATE UPDATE (Optimistic)
+          // We show the message instantly with a placeholder sender
+          const optimisticMessage: Message = {
+            id: newMsg.id,
+            conversationId: newMsg.conversation_id,
+            senderId: newMsg.sender_id,
+            content: newMsg.content,
+            created_at: newMsg.created_at,
+            read: false,
+            attachments: [],
+            sender: {
+              id: newMsg.sender_id,
+              name: 'Loading...', // Temporary name
+              avatar: null,
+              isOnline: false,
+            },
           };
 
-          try {
-            const { data: userProfile, error: profileError } = await supabase
-              .from('users')
-              .select('id, full_name, avatar_url')
-              .eq('id', newMessage.sender_id)
-              .single();
+          setMessages((prev) => [...prev, optimisticMessage]);
 
-            if (profileError) {
-              console.warn('⚠️ Could not fetch sender profile, using fallback.', profileError);
-            }
+          // B. FETCH REAL SENDER (Background)
+          const { data: userData } = await supabase
+            .from('users')
+            .select('full_name, avatar_url')
+            .eq('id', newMsg.sender_id)
+            .single();
 
-            if (userProfile) {
-              senderDetails = userProfile;
-            }
-          } catch (err) {
-            console.warn('⚠️ Unexpected error fetching sender profile, using fallback.', err);
+          if (userData) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === newMsg.id
+                  ? { ...m, sender: { ...m.sender, name: userData.full_name, avatar: userData.avatar_url } }
+                  : m
+              )
+            );
           }
-
-          const formattedMessage = mapMessage(newMessage, senderDetails);
-
-          setMessages((prev) => {
-            if (prev.some((message) => message.id === formattedMessage.id)) return prev;
-            return [...prev, formattedMessage];
-          });
         }
-      );
-
-    channel.subscribe();
+      )
+      .subscribe((status) => {
+        console.log('DATA STREAM STATUS:', status);
+      });
 
     return () => {
-      isMounted = false;
       supabase.removeChannel(channel);
     };
   }, [conversationId]);
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!conversationId) throw new Error('Missing conversation ID');
-      if (!user?.id) throw new Error('User not authenticated');
-
-      const newMessage = await sendMessageApi(conversationId, user.id, content);
-      const formatted = mapMessage(newMessage as any, (newMessage as any).sender);
-
-      setMessages((prev) => {
-        if (prev.some((message) => message.id === formatted.id)) return prev;
-        return [...prev, formatted];
-      });
+      if (!conversationId || !user) return;
+      try {
+        await sendMessageApi(conversationId, user.id, content);
+        // We don't manually append here because the Realtime subscription will catch our own message too!
+      } catch (err) {
+        console.error('Failed to send:', err);
+      }
     },
-    [conversationId, user?.id]
+    [conversationId, user]
   );
 
   return { messages, loading, sendMessage };

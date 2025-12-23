@@ -35,10 +35,8 @@ export function NotificationList() {
 
     // Navigate if action URL exists
     if (actionUrl) {
-      // Remove leading slash to avoid double slash issues, then prepend locale
-      const cleanPath = actionUrl.startsWith('/') ? actionUrl.substring(1) : actionUrl;
-      const correctLink = `/${locale}/${cleanPath}`; // Result: "/en/messages/123"
-      router.push(correctLink);
+      const localizedUrl = `/${locale}/${actionUrl.replace(/^\//, '')}`;
+      router.push(localizedUrl);
     }
   };
 

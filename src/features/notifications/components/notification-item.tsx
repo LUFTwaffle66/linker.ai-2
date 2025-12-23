@@ -51,18 +51,14 @@ export function NotificationItem({ notification, onClick, onDelete }: Notificati
     addSuffix: true,
   });
 
-  const cleanedActionUrl = notification.action_url?.startsWith('/')
-    ? notification.action_url
-    : notification.action_url
-      ? `/${notification.action_url}`
-      : undefined;
-
-  const href =
-    cleanedActionUrl && cleanedActionUrl.startsWith(`/${locale}`)
-      ? cleanedActionUrl
-      : cleanedActionUrl
-        ? `/${locale}${cleanedActionUrl}`
-        : undefined;
+  // Helper to fix the URL
+  const getActionUrl = (url: string | null | undefined) => {
+    if (!url) return '/';
+    // If it already has the locale, return it
+    if (url.startsWith(`/${locale}`)) return url;
+    // Otherwise prepend it
+    return `/${locale}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -142,17 +138,9 @@ export function NotificationItem({ notification, onClick, onDelete }: Notificati
     !notification.is_read && 'bg-primary/5'
   );
 
-  if (href) {
-    return (
-      <Link href={href} className={wrapperClasses} onClick={onClick}>
-        {content}
-      </Link>
-    );
-  }
-
   return (
-    <div className={wrapperClasses} onClick={onClick}>
+    <Link href={getActionUrl(notification.action_url)} className={wrapperClasses} onClick={onClick}>
       {content}
-    </div>
+    </Link>
   );
 }
