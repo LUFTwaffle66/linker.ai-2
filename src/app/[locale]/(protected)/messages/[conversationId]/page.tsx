@@ -9,13 +9,11 @@ import { useConversation } from '@/features/messaging/hooks/use-conversations';
 import { useAuth } from '@/features/auth/lib/auth-client';
 import { useRouter } from '@/i18n/routing';
 
-type ConversationPageProps = {
-  params: {
-    conversationId: string;
-  };
-};
-
-export default function ConversationPage({ params }: ConversationPageProps) {
+export default function ConversationPage({
+  params,
+}: {
+  params: { conversationId: string };
+}) {
   return <ConversationChatWindow conversationId={params.conversationId} />;
 }
 
