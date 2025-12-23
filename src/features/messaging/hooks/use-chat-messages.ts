@@ -85,29 +85,39 @@ export function useChatMessages(conversationId: string | null) {
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
+          console.log('🟢 REALTIME EVENT RECEIVED:', payload);
           const newMessage = payload.new as SupabaseMessageRow;
 
-          // 1. Try to fetch sender, but DON'T fail if we can't
-          const { data: sender } = await supabase
-            .from('users')
-            .select('id, full_name, avatar_url')
-            .eq('id', newMessage.sender_id)
-            .single();
-
-          // 2. Create a fallback if sender is missing (e.g. due to RLS)
-          const safeSender = sender || {
+          // Start with a safe fallback sender to avoid blocking UI updates.
+          let senderDetails: SupabaseUserRow = {
             id: newMessage.sender_id,
-            full_name: 'User', // Fallback name
+            full_name: 'Loading...',
             avatar_url: null,
           };
 
-          // 3. Map and update state
-          const formatted = mapMessage(newMessage, safeSender);
+          try {
+            const { data: userProfile, error: profileError } = await supabase
+              .from('users')
+              .select('id, full_name, avatar_url')
+              .eq('id', newMessage.sender_id)
+              .single();
+
+            if (profileError) {
+              console.warn('⚠️ Could not fetch sender profile, using fallback.', profileError);
+            }
+
+            if (userProfile) {
+              senderDetails = userProfile;
+            }
+          } catch (err) {
+            console.warn('⚠️ Unexpected error fetching sender profile, using fallback.', err);
+          }
+
+          const formattedMessage = mapMessage(newMessage, senderDetails);
 
           setMessages((prev) => {
-            // Deduplicate: Don't add if we already have it
-            if (prev.some((message) => message.id === formatted.id)) return prev;
-            return [...prev, formatted];
+            if (prev.some((message) => message.id === formattedMessage.id)) return prev;
+            return [...prev, formattedMessage];
           });
         }
       );

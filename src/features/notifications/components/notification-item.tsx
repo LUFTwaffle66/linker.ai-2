@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Trash2,
 } from 'lucide-react';
+import Link from 'next/link';
+import { useLocale } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -44,85 +46,113 @@ const categoryColors: Record<NotificationCategory, string> = {
 };
 
 export function NotificationItem({ notification, onClick, onDelete }: NotificationItemProps) {
+  const locale = useLocale();
   const timeAgo = formatDistanceToNow(new Date(notification.created_at), {
     addSuffix: true,
   });
 
-  return (
-    <div
-      className={cn(
-        'group relative p-4 cursor-pointer transition-colors hover:bg-muted/50',
-        !notification.is_read && 'bg-primary/5'
-      )}
-      onClick={onClick}
-    >
-      <div className="flex gap-3">
-        {/* Icon or Actor Avatar */}
-        <div className="flex-shrink-0">
-          {notification.actor_avatar_url ? (
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={notification.actor_avatar_url} alt={notification.actor_name} />
-              <AvatarFallback>
-                {notification.actor_name?.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <div
+  const cleanedActionUrl = notification.action_url?.startsWith('/')
+    ? notification.action_url
+    : notification.action_url
+      ? `/${notification.action_url}`
+      : undefined;
+
+  const href =
+    cleanedActionUrl && cleanedActionUrl.startsWith(`/${locale}`)
+      ? cleanedActionUrl
+      : cleanedActionUrl
+        ? `/${locale}${cleanedActionUrl}`
+        : undefined;
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(e);
+  };
+
+  const content = (
+    <div className="flex gap-3">
+      {/* Icon or Actor Avatar */}
+      <div className="flex-shrink-0">
+        {notification.actor_avatar_url ? (
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={notification.actor_avatar_url} alt={notification.actor_name} />
+            <AvatarFallback>
+              {notification.actor_name?.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div
+            className={cn(
+              'h-10 w-10 rounded-full flex items-center justify-center',
+              categoryColors[notification.category]
+            )}
+          >
+            {categoryIcons[notification.category]}
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
+            <p
               className={cn(
-                'h-10 w-10 rounded-full flex items-center justify-center',
-                categoryColors[notification.category]
+                'text-sm font-medium leading-snug',
+                !notification.is_read && 'font-semibold'
               )}
             >
-              {categoryIcons[notification.category]}
-            </div>
+              {notification.title}
+            </p>
+            {notification.actor_name && (
+              <p className="text-xs text-muted-foreground mt-0.5">From {notification.actor_name}</p>
+            )}
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+              {notification.message}
+            </p>
+          </div>
+
+          {/* Delete button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="opacity-0 group-hover:opacity-100 h-8 w-8 flex-shrink-0"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs text-muted-foreground">{timeAgo}</span>
+          {!notification.is_read && (
+            <>
+              <span className="text-xs text-muted-foreground">•</span>
+              <span className="h-2 w-2 rounded-full bg-primary"></span>
+            </>
           )}
         </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1">
-              <p
-                className={cn(
-                  'text-sm font-medium leading-snug',
-                  !notification.is_read && 'font-semibold'
-                )}
-              >
-                {notification.title}
-              </p>
-              {notification.actor_name && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  From {notification.actor_name}
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {notification.message}
-              </p>
-            </div>
-
-            {/* Delete button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="opacity-0 group-hover:opacity-100 h-8 w-8 flex-shrink-0"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
-            {!notification.is_read && (
-              <>
-                <span className="text-xs text-muted-foreground">•</span>
-                <span className="h-2 w-2 rounded-full bg-primary"></span>
-              </>
-            )}
-          </div>
-        </div>
       </div>
+    </div>
+  );
+
+  const wrapperClasses = cn(
+    'group relative p-4 cursor-pointer transition-colors hover:bg-muted/50',
+    !notification.is_read && 'bg-primary/5'
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={wrapperClasses} onClick={onClick}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={wrapperClasses} onClick={onClick}>
+      {content}
     </div>
   );
 }
