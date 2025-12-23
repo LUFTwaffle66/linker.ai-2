@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
+import { useLocale } from 'next-intl';
 import { formatDistanceToNow } from 'date-fns';
 import { CheckCheck, Trash2, Filter, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import type { NotificationCategory } from '@/features/notifications';
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const locale = useLocale();
   const [selectedCategory, setSelectedCategory] = useState<NotificationCategory | 'all'>('all');
   const [showArchived, setShowArchived] = useState(false);
 
@@ -54,7 +56,10 @@ export default function NotificationsPage() {
 
     // Navigate if action URL exists
     if (actionUrl) {
-      router.push(actionUrl);
+      // Remove leading slash to avoid double slash issues, then prepend locale
+      const cleanPath = actionUrl.startsWith('/') ? actionUrl.substring(1) : actionUrl;
+      const correctLink = `/${locale}/${cleanPath}`; // Result: "/en/messages/123"
+      router.push(correctLink);
     }
   };
 

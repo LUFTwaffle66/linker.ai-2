@@ -87,20 +87,25 @@ export function useChatMessages(conversationId: string | null) {
         async (payload) => {
           const newMessage = payload.new as SupabaseMessageRow;
 
-          const { data: sender, error: senderError } = await supabase
+          // 1. Try to fetch sender, but DON'T fail if we can't
+          const { data: sender } = await supabase
             .from('users')
             .select('id, full_name, avatar_url')
             .eq('id', newMessage.sender_id)
             .single();
 
-          if (senderError || !sender) {
-            console.error('Failed to fetch sender details for new message', senderError);
-            return;
-          }
+          // 2. Create a fallback if sender is missing (e.g. due to RLS)
+          const safeSender = sender || {
+            id: newMessage.sender_id,
+            full_name: 'User', // Fallback name
+            avatar_url: null,
+          };
 
-          const formatted = mapMessage(newMessage, sender);
+          // 3. Map and update state
+          const formatted = mapMessage(newMessage, safeSender);
 
           setMessages((prev) => {
+            // Deduplicate: Don't add if we already have it
             if (prev.some((message) => message.id === formatted.id)) return prev;
             return [...prev, formatted];
           });

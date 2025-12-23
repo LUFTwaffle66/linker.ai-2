@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from '@/i18n/routing';
+import { useLocale } from 'next-intl';
 import { CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,6 +25,7 @@ export function NotificationList() {
   const { mutate: markAsRead } = useMarkAsRead();
   const { mutate: markAllAsRead } = useMarkAllAsRead();
   const { mutate: deleteNotification } = useDeleteNotification();
+  const locale = useLocale();
 
   const unreadNotifications = notifications.filter((n) => !n.is_read);
 
@@ -33,7 +35,10 @@ export function NotificationList() {
 
     // Navigate if action URL exists
     if (actionUrl) {
-      router.push(actionUrl);
+      // Remove leading slash to avoid double slash issues, then prepend locale
+      const cleanPath = actionUrl.startsWith('/') ? actionUrl.substring(1) : actionUrl;
+      const correctLink = `/${locale}/${cleanPath}`; // Result: "/en/messages/123"
+      router.push(correctLink);
     }
   };
 
