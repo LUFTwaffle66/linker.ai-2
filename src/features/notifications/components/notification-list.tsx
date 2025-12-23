@@ -1,8 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
-import { CheckCheck, Trash2, Archive } from 'lucide-react';
+import { useRouter } from '@/i18n/routing';
+import { CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
