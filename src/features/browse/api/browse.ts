@@ -16,6 +16,9 @@ export interface BrowseProject {
   proposal_count: number;
   is_featured: boolean;
   created_at: string;
+  published_at?: string | null;
+  duration_value?: number | null;
+  duration_unit?: 'days' | 'weeks' | 'months' | null;
   client: {
     id: string;
     full_name: string;

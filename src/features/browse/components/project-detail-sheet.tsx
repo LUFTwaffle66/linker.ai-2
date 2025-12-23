@@ -1,10 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useAuth } from '@/features/auth/lib/auth-client';import { formatDistanceToNow } from 'date-fns';
-import {
-  Globe, DollarSign, Clock, User, FileText, CheckCircle, Star, MapPin
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { add, differenceInCalendarDays, formatDistanceToNow } from 'date-fns';
+import { Globe, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -19,6 +17,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { BrowseProject } from '../types';
 import { AuthRequiredDialog } from './auth-required-dialog';
+import { useAuth } from '@/features/auth/lib/auth-client';
+import { useUserProposalForProject } from '@/features/proposals/api/use-user-proposal';
 
 interface ProjectDetailSheetProps {
   project: BrowseProject | null;
@@ -40,8 +40,10 @@ export function ProjectDetailSheet({
 
   // Check if current user is the project owner
   const isOwnProject = user?.id === project.client_id;
+  const { data: existingProposal } = useUserProposalForProject(project.id);
 
   const handleSubmitProposal = () => {
+    if (existingProposal) return;
     if (!isAuthenticated) {
       setShowAuthDialog(true);
       return;
@@ -59,7 +61,25 @@ export function ProjectDetailSheet({
   }).format(project.fixed_budget);
 
   // Format posted date
-  const postedDate = formatDistanceToNow(new Date(project.created_at), { addSuffix: true });
+  const postedAt = project.published_at ?? project.created_at;
+  const postedDate = formatDistanceToNow(new Date(postedAt), { addSuffix: true });
+
+  const timeLeftLabel = useMemo(() => {
+    const startDate = project.published_at ? new Date(project.published_at) : new Date(project.created_at);
+    if (isNaN(startDate.getTime())) return null;
+
+    const hasDurationValue = project.duration_value !== null && project.duration_value !== undefined;
+    const durationValue = hasDurationValue ? project.duration_value! : 30;
+    const durationUnit = hasDurationValue ? project.duration_unit ?? 'days' : 'days';
+    const multiplier = durationUnit === 'months' ? 30 : durationUnit === 'weeks' ? 7 : 1;
+    const endDate = add(startDate, { days: durationValue * multiplier });
+    const daysLeft = differenceInCalendarDays(endDate, new Date());
+
+    if (isNaN(daysLeft)) return null;
+    if (daysLeft < 0) return 'Ended';
+    if (daysLeft === 0) return 'Ending today';
+    return `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`;
+  }, [project.created_at, project.duration_unit, project.duration_value, project.published_at]);
 
   return (
     <>
@@ -77,6 +97,15 @@ export function ProjectDetailSheet({
                     <Globe className="w-3 h-3" />
                     Worldwide
                   </span>
+                  {timeLeftLabel && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {timeLeftLabel}
+                      </span>
+                    </>
+                  )}
                 </SheetDescription>
               </div>
               <Badge variant="secondary" className="flex-shrink-0">
@@ -113,20 +142,6 @@ export function ProjectDetailSheet({
                     <span className="text-sm font-medium">Duration</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{project.timeline}</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Experience Level</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Intermediate</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Project Type</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">One-time project</p>
                 </div>
               </div>
 
@@ -213,20 +228,22 @@ export function ProjectDetailSheet({
             </div>
           </ScrollArea>
 
-          {/* Action Buttons */}
-          {!isOwnProject && (
-            <div className="px-6 py-4 border-t bg-background">
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handleSubmitProposal}
-              >
-                Submit Proposal
-              </Button>
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Submit a proposal to apply for this project
-              </p>
-            </div>
+              {/* Action Buttons */}
+              {!isOwnProject && (
+                <div className="px-6 py-4 border-t bg-background">
+                  <Button
+                    className="w-full"
+                    variant={existingProposal ? 'outline' : 'default'}
+                    size="lg"
+                    onClick={handleSubmitProposal}
+                    disabled={!!existingProposal}
+                  >
+                    {existingProposal ? 'Applied ✅' : 'Submit Proposal'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center mt-3">
+                    Submit a proposal to apply for this project
+                  </p>
+                </div>
           )}
         </div>
       </SheetContent>

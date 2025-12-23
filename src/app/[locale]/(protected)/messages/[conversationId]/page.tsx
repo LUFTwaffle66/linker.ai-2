@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ChatHeader, MessageInput, MessageList } from '@/features/messaging';
 import { useChatMessages } from '@/features/messaging/hooks/use-chat-messages';
@@ -9,12 +10,11 @@ import { useConversation } from '@/features/messaging/hooks/use-conversations';
 import { useAuth } from '@/features/auth/lib/auth-client';
 import { useRouter } from '@/i18n/routing';
 
-export default function ConversationPage({
-  params,
-}: {
-  params: { conversationId: string };
-}) {
-  return <ConversationChatWindow conversationId={params.conversationId} />;
+export default function ConversationPage() {
+  const params = useParams();
+  const conversationId = params.conversationId as string;
+
+  return <ConversationChatWindow conversationId={conversationId} />;
 }
 
 function ConversationChatWindow({ conversationId }: { conversationId: string }) {
