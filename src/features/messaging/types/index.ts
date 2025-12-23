@@ -5,7 +5,7 @@ export type UserType = 'client' | 'freelancer';
 export interface User {
   id: string;
   name: string;
-  avatar: string;
+  avatar: string | null;
   type?: UserType;
   isOnline: boolean;
   lastSeen?: Date;

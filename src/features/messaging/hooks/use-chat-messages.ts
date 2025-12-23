@@ -29,20 +29,32 @@ export function useChatMessages(conversationId: string | null) {
       if (error) {
         console.error('Error fetching messages:', error);
       } else {
-        const formatted = (data || []).map((msg: any) => ({
-          id: msg.id,
-          conversationId: msg.conversation_id,
-          senderId: msg.sender_id,
-          content: msg.content,
-          created_at: msg.created_at,
-          read: msg.read || false,
-          attachments: msg.attachments || [],
-          sender: msg.sender || {
-            id: msg.sender_id,
-            name: 'Unknown',
-            avatar: null,
-          },
-        }));
+        const formatted = (data || []).map((msg: any) => {
+          const senderUser = msg.sender
+            ? {
+                id: msg.sender.id,
+                name: msg.sender.full_name,
+                avatar: msg.sender.avatar_url,
+                isOnline: false, // Assuming not online unless presence is tracked
+              }
+            : {
+                id: msg.sender_id,
+                name: 'Unknown User',
+                avatar: null,
+                isOnline: false,
+              };
+
+          return {
+            id: msg.id,
+            conversationId: msg.conversation_id,
+            senderId: msg.sender_id,
+            content: msg.content,
+            created_at: msg.created_at,
+            read: msg.read || false,
+            attachments: msg.attachments || [],
+            sender: senderUser,
+          };
+        });
 
         // Update state and cache IDs
         setMessages(formatted);
