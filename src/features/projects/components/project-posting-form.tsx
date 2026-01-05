@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,9 @@ import { Form } from '@/components/ui/form';
 import { projectPostingSchema, type ProjectPostingFormData } from '../types';
 import { paths } from '@/config/paths';
 import { useCreateProject } from '../hooks/use-projects';
+// 👇 Added Supabase and Icons
+import { supabase } from '@/lib/supabase/client';
+import { Loader2 } from 'lucide-react';
 import {
   ProgressHeader,
   ProjectDetailsStep,
@@ -30,18 +33,50 @@ const DEFAULT_VALUES: ProjectPostingFormData = {
   invitedFreelancers: [],
 };
 
-export function ProjectPostingForm() {
+interface ProjectPostingFormProps {
+  initialValues?: Partial<ProjectPostingFormData> & { service_category_id?: string; serviceCategoryId?: string; skills?: string[] };
+  templateCategoryId?: string;
+}
+
+export function ProjectPostingForm({ initialValues, templateCategoryId }: ProjectPostingFormProps = {}) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [freelancerSearch, setFreelancerSearch] = useState('');
   const [selectedFreelancers, setSelectedFreelancers] = useState<string[]>([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  // 👇 Added uploading state
+  const [isUploading, setIsUploading] = useState(false);
+  const [autoInviteEnabled, setAutoInviteEnabled] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(projectPostingSchema),
-    defaultValues: DEFAULT_VALUES,
+    defaultValues: {
+      ...DEFAULT_VALUES,
+      ...initialValues,
+    },
   });
+
+  useEffect(() => {
+    if (initialValues) {
+      const targetCategory =
+        initialValues.serviceCategoryId ||
+        (initialValues as any).service_category_id ||
+        initialValues.category;
+
+      console.log('DEBUG: Template Category:', targetCategory);
+
+      form.reset({
+        ...DEFAULT_VALUES,
+        ...initialValues,
+        category: targetCategory ? String(targetCategory) : '',
+        skills: initialValues.skills ?? [],
+      });
+
+      // Trigger validation to update UI state
+      void form.trigger(['title', 'category', 'description', 'skills']);
+    }
+  }, [initialValues, form]);
 
   const createProjectMutation = useCreateProject();
   const skills = form.watch('skills');
@@ -60,6 +95,7 @@ export function ProjectPostingForm() {
     const files = Array.from(e.target.files || []);
     const newAttachments = [...attachments, ...files];
     setAttachments(newAttachments);
+    // Keep local file state but don't set raw files in form yet
     form.setValue('attachments', newAttachments);
   };
 
@@ -82,25 +118,59 @@ export function ProjectPostingForm() {
   const validateAndGoToStep = async (nextStep: number) => {
     let fieldsToValidate: Array<keyof ProjectPostingFormData> = [];
 
-    // Define which fields to validate for each step
     if (currentStep === 1) {
       fieldsToValidate = ['title', 'category', 'description', 'skills'];
     } else if (currentStep === 2) {
       fieldsToValidate = ['budgetAmount', 'timeline'];
     }
 
-    // Trigger validation for the current step's fields
     const isValid = await form.trigger(fieldsToValidate);
 
-    // Only proceed to next step if validation passes
     if (isValid) {
       setCurrentStep(nextStep);
     }
   };
 
-  // Form submission
+  // 👇 THE FIXED SUBMIT FUNCTION (Uploads files first)
   const onSubmit = async (data: ProjectPostingFormData) => {
     try {
+      setIsUploading(true);
+
+      // 1. Upload files to Supabase Storage
+      const uploadedFiles = [];
+
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          // Generate unique path
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+          const filePath = `${fileName}`; // Using simple root path for now
+
+          // Upload to 'project-files' bucket
+          const { error: uploadError } = await supabase.storage
+            .from('project-files') // Make sure this bucket exists!
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            continue;
+          }
+
+          // Get the public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('project-files')
+            .getPublicUrl(filePath);
+
+          uploadedFiles.push({
+            name: file.name,
+            url: publicUrl,
+            size: file.size,
+            type: file.type
+          });
+        }
+      }
+
+      // 2. Submit project with the REAL file URLs
       await createProjectMutation.mutateAsync({
         title: data.title,
         category: data.category,
@@ -108,14 +178,30 @@ export function ProjectPostingForm() {
         skills: data.skills,
         budgetAmount: data.budgetAmount,
         timeline: data.timeline,
-        attachments: data.attachments || [],
+        attachments: uploadedFiles, // 👈 Passing valid objects now
         invitedFreelancers: selectedFreelancers,
         isPublished: true,
       });
+
+      /* TEMPORARILY DISABLED FOR MOCK DATA TESTING
+      if (selectedFreelancers.length > 0) {
+        const invitations = selectedFreelancers.map((freelancerId) => ({
+          freelancer_id: freelancerId,
+          status: 'pending',
+        }));
+
+        // Intentionally not persisting invitations while using mock data
+        // await supabase.from('project_invitations').insert(invitations);
+      }
+      */
+
+      setAutoInviteEnabled(Boolean(templateCategoryId && data.category === templateCategoryId));
       setShowSuccessDialog(true);
     } catch (error) {
-      // Error is handled by the mutation hook
       console.error('Failed to create project:', error);
+      alert('Failed to create project. Check console for details.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -143,7 +229,19 @@ export function ProjectPostingForm() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-muted/30 relative">
+      {/* 👇 Loading Overlay (Fixes the need to edit the other file) */}
+      {(isUploading || createProjectMutation.isPending) && (
+        <div className="absolute inset-0 z-50 bg-background/80 flex items-center justify-center backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">
+              {isUploading ? 'Uploading files...' : 'Creating project...'}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -187,6 +285,7 @@ export function ProjectPostingForm() {
               <InviteExpertsStep
                 searchQuery={freelancerSearch}
                 selectedFreelancers={selectedFreelancers}
+                projectSkills={form.watch('skills')}
                 onSearchChange={setFreelancerSearch}
                 onToggleFreelancer={toggleFreelancerInvite}
                 onBack={() => setCurrentStep(2)}
@@ -201,6 +300,7 @@ export function ProjectPostingForm() {
                 selectedFreelancers={selectedFreelancers}
                 attachments={attachments}
                 onBack={() => setCurrentStep(3)}
+                // Removed the prop that caused the error
               />
             )}
           </form>
@@ -212,6 +312,7 @@ export function ProjectPostingForm() {
         open={showSuccessDialog}
         onOpenChange={setShowSuccessDialog}
         selectedFreelancersCount={selectedFreelancers.length}
+        autoInviteEnabled={autoInviteEnabled}
         onViewProjects={handleSuccessClose}
         onPostAnother={handlePostAnother}
       />

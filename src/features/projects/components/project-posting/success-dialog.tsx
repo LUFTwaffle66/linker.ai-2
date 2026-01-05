@@ -13,6 +13,7 @@ interface SuccessDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedFreelancersCount: number;
+  autoInviteEnabled?: boolean;
   onViewProjects: () => void;
   onPostAnother: () => void;
 }
@@ -21,6 +22,7 @@ export function SuccessDialog({
   open,
   onOpenChange,
   selectedFreelancersCount,
+  autoInviteEnabled,
   onViewProjects,
   onPostAnother,
 }: SuccessDialogProps) {
@@ -40,6 +42,8 @@ export function SuccessDialog({
             Your project is now live and visible to qualified AI experts.
             {selectedFreelancersCount > 0 &&
               ` ${selectedFreelancersCount} expert${selectedFreelancersCount !== 1 ? 's have' : ' has'} been invited to submit proposals.`}
+            {autoInviteEnabled &&
+              " Project posted! We've already notified experts who specialize in this specific task. You don't need to search—just wait for their proposals."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-col gap-2 mt-4">

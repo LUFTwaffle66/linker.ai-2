@@ -32,6 +32,15 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
     }
   };
 
+  const parseDate = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const parsedDeadlineDate = parseDate(project.deadlineDate);
+  const deadlineDisplay = parsedDeadlineDate ? format(parsedDeadlineDate, 'MMM d') : project.deadline;
+
   // Get initials for avatar fallback
   const getInitials = (name: string) => {
     if (!name) return 'U';
@@ -85,16 +94,16 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
                 <span>•</span>
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  <span>Started: {formatDate(project.startDate)}</span>
-                </div>
-                <span>•</span>
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <span>Deadline: {project.deadline}</span>
-                </div>
+                <span>Started: {formatDate(project.startDate)}</span>
+              </div>
+              <span>•</span>
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                <span>Deadline: {deadlineDisplay}</span>
               </div>
             </div>
           </div>
+        </div>
 
           <div className="flex items-center gap-3">
             <div className="text-center">

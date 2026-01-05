@@ -47,8 +47,10 @@ export interface FreelancerOption {
   name: string;
   title: string;
   avatar: string;
-  rating: number;
-  reviewCount: number;
+  rating?: number | null;
+  reviewCount?: number | null;
+  averageRating?: number | null;
+  totalReviews?: number | null;
   skills: string[];
   hourlyRate: number;
   completedProjects: number;

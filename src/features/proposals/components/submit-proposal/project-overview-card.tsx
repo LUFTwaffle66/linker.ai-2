@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import type { ProjectWithClient } from '@/features/projects/api/projects';
 import { formatDistanceToNow } from 'date-fns';
+import { formatDurationLabel } from '@/features/proposals/utils/duration';
 
 interface ProjectOverviewCardProps {
   project: ProjectWithClient;
@@ -13,6 +14,12 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
   const postedDate = formatDistanceToNow(new Date(project.created_at), {
     addSuffix: true,
   });
+  const acceptedProposal = project.proposals?.find((proposal) => proposal.status === 'accepted');
+  const displayDuration =
+    acceptedProposal?.timeline ||
+    (acceptedProposal?.duration_value && acceptedProposal.duration_unit
+      ? formatDurationLabel(acceptedProposal.duration_value, acceptedProposal.duration_unit)
+      : project.timeline);
 
   return (
     <Card>
@@ -34,7 +41,7 @@ export function ProjectOverviewCard({ project }: ProjectOverviewCardProps) {
           />
           <ProjectDetail
             icon={<Clock className="w-4 h-4" />}
-            text={project.timeline}
+            text={displayDuration}
           />
           <ProjectDetail
             icon={<Calendar className="w-4 h-4" />}

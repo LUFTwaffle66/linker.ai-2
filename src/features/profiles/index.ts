@@ -19,7 +19,7 @@ export type {
   FreelancerStats,
   ClientProject,
   FreelancerPortfolio,
-  FreelancerReview,
+  ProfileReview,
   ProfileType,
 } from './types';
 

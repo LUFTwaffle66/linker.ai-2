@@ -12,12 +12,17 @@ import { formatDistanceToNow } from 'date-fns';
 import type { User, Conversation } from '../types';
 
 interface ChatHeaderProps {
-  otherParticipant: User;
+  otherParticipant: User & { 
+    isOnline?: boolean; 
+    lastSeen?: string | null 
+  };
   conversation: Conversation;
   onConversationDeleted: () => void;
 }
 
 export function ChatHeader({ otherParticipant, conversation, onConversationDeleted }: ChatHeaderProps) {
+  // DEBUG LOG: Open your browser console to see this
+  console.log('ChatHeader received participant:', otherParticipant);
   const initials = otherParticipant.name
     ?.split(' ')
     .map((n) => n[0])

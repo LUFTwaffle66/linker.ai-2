@@ -10,6 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { paths } from '@/config/paths';
 import type { ProjectWithClient } from '../../api/projects';
+import { formatDurationLabel } from '@/features/proposals/utils/duration';
 
 interface ProjectCardProps {
   project: ProjectWithClient;
@@ -32,6 +33,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const status = statusConfig[project.status];
   const acceptedProposal = project.proposals?.find((proposal) => proposal.status === 'accepted');
   const displayPrice = acceptedProposal?.total_budget ?? project.fixed_budget;
+  const displayDuration =
+    acceptedProposal?.timeline ||
+    (acceptedProposal?.duration_value && acceptedProposal.duration_unit
+      ? formatDurationLabel(acceptedProposal.duration_value, acceptedProposal.duration_unit)
+      : project.timeline);
 
   // Calculate progress (for now, use a simple logic based on status)
   const getProgress = () => {
@@ -84,7 +90,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span>{project.timeline}</span>
+            <span>{displayDuration}</span>
           </div>
         </div>
 

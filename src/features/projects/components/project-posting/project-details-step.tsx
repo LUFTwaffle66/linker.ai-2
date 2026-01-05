@@ -75,9 +75,11 @@ export function ProjectDetailsStep({
             name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category *</FormLabel>
-                <Select
+              <FormLabel>Category *</FormLabel>
+              <Select
+                  key={field.value} 
                   onValueChange={field.onChange}
+                  value={field.value}
                   defaultValue={field.value}
                 >
                   <FormControl>

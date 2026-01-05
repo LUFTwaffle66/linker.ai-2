@@ -111,6 +111,18 @@ export function MobileMenu() {
                 >
                   Find AI Experts
                 </Button>
+                {user?.role === 'client' && (
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start h-11 px-4"
+                    onClick={() => {
+                      router.push(paths.public.examples.getHref());
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    Automation Examples
+                  </Button>
+                )}
               </div>
 
               <div className="border-t pt-5 space-y-1">

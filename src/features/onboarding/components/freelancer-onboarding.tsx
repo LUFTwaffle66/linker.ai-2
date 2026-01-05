@@ -48,7 +48,7 @@ const aiSkills = [
   'OpenAI API', 'GPT-4', 'ChatGPT', 'Claude API',
   'Natural Language Processing', 'Computer Vision', 'Machine Learning',
   'Deep Learning', 'Neural Networks', 'LangChain',
-  'UiPath', 'Automation Anywhere', 'Blue Prism', 'Power Automate',
+  'UiPath', 'Automation Anywhere', 'Blue Prism', 'Power Automate', 'n8n',
   'API Integration', 'Data Analysis', 'SQL', 'MongoDB',
   'AWS', 'Google Cloud', 'Azure', 'Docker', 'Kubernetes',
   'React', 'Node.js', 'FastAPI', 'Django', 'Flask'

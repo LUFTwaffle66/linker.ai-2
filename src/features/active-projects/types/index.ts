@@ -29,7 +29,11 @@ export interface ProjectInfo {
   finalPaid: boolean;
   finalDate?: string;
   startDate: string;
+  startedAt?: string | null;
+  durationValue?: number | null;
+  durationUnit?: 'days' | 'weeks' | 'months' | null;
   deadline: string;
+  deadlineDate?: string | null;
   progress: number;
   status: ProjectStatus;
   attachments?: any[];

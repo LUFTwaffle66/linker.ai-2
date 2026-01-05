@@ -44,6 +44,11 @@ export interface Conversation {
   lastMessage: any;
   isMuted: boolean;
   isStarred: boolean;
+  conversation_participants?: {
+    unread_count: number;
+    has_new_messages: boolean;
+    user_id: string;
+  }[];
 }
 
 export interface ConversationSettings {

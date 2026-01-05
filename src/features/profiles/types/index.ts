@@ -3,7 +3,6 @@ export interface ClientStats {
   memberSince: string;
   projectsPosted: number;
   totalSpent: string;
-  repeatExperts: string;
   avgProjectSize: string;
 }
 
@@ -21,7 +20,7 @@ export interface ClientActivity {
 }
 
 export interface ClientProject {
-  id: number;
+  id: string;
   title: string;
   status: 'Completed' | 'In Progress' | 'Cancelled';
   budget: string;
@@ -41,13 +40,17 @@ export interface ClientProfileData {
   memberSince: string;
   rating: number;
   reviewCount: number;
+  average_rating?: number | null;
+  total_reviews?: number | null;
   verified: boolean;
   industries: string[];
   bio: string;
+  languages: string[];
   lookingFor: Array<{
     title: string;
     description: string;
   }>;
+  reviews: ProfileReview[];
   stats: ClientStats;
   verification: ClientVerification;
   recentActivity: ClientActivity[];
@@ -58,7 +61,6 @@ export interface ClientProfileData {
 export interface FreelancerStats {
   projectsCompleted: number;
   totalEarnings: string;
-  repeatClients: string;
   onTimeDelivery: string;
 }
 
@@ -84,15 +86,16 @@ export interface FreelancerPortfolio {
   imageUrl?: string;
 }
 
-export interface FreelancerReview {
-  id: number;
-  client: string;
-  avatar: string;
+export interface ProfileReview {
+  id: string;
+  reviewer_id: string;
+  reviewer_name: string;
+  reviewer_avatar?: string | null;
   rating: number;
-  date: string;
-  project: string;
-  comment: string;
-  budget: string;
+  comment: string | null;
+  created_at: string;
+  project_id?: string | null;
+  project_title?: string | null;
 }
 
 export interface FreelancerExperience {
@@ -115,20 +118,19 @@ export interface FreelancerProfileData {
   };
   rating: number;
   reviewCount: number;
+  average_rating?: number | null;
+  total_reviews?: number | null;
   verified: boolean;
   skills: string[];
   bio: string;
   expertise: string[];
   certifications: FreelancerCertification[];
   portfolio: FreelancerPortfolio[];
-  reviews: FreelancerReview[];
+  reviews: ProfileReview[];
   experience: FreelancerExperience[];
   stats: FreelancerStats;
   availability: FreelancerAvailability;
-  languages: Array<{
-    language: string;
-    proficiency: string;
-  }>;
+  languages: string[];
   topTechnologies: Array<{
     name: string;
     level: string;

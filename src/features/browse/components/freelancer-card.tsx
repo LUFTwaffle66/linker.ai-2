@@ -24,6 +24,9 @@ export function FreelancerCard({ freelancer, onClick, className }: FreelancerCar
 
   // Count completed projects from portfolio
   const completedProjects = freelancer.portfolio?.length || 0;
+  const averageRating = freelancer.user.average_rating ?? null;
+  const totalReviews = freelancer.user.total_reviews ?? 0;
+  const hasReviews = (totalReviews || 0) > 0;
 
   return (
     <Card
@@ -55,13 +58,17 @@ export function FreelancerCard({ freelancer, onClick, className }: FreelancerCar
               <p className="text-muted-foreground mb-2">{freelancer.title}</p>
 
               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="font-medium">
-                    {freelancer.experience >= 5 ? '5.0' : '4.8'}
-                  </span>
-                  <span>({freelancer.experience * 10} reviews)</span>
-                </div>
+                {hasReviews ? (
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="font-medium">
+                      {(averageRating ?? 0).toFixed(1)}
+                    </span>
+                    <span>({totalReviews} reviews)</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-medium text-muted-foreground">New Talent</span>
+                )}
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
                   {freelancer.location}

@@ -6,6 +6,7 @@ export { useFreelancerProfile, useUpdateFreelancerProfile } from './use-freelanc
 export {
   useUpdateFreelancerBio,
   useUpdateFreelancerSkills,
+  useUpdateFreelancerLanguages,
   useAddFreelancerPortfolio,
   useUpdateFreelancerPortfolio,
   useDeleteFreelancerPortfolio,

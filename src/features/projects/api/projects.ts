@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, createClient } from '@/lib/supabase';
 import { createNotification } from '@/features/notifications/api/notifications';
 import { paths } from '@/config/paths';
 import type { ProjectPostingFormData } from '../types';
@@ -38,10 +38,15 @@ export interface ProjectWithClient extends Project {
     full_name: string;
     company_name: string | null;
     avatar_url: string | null;
+    created_at: string;
   };
   proposals?: {
     total_budget: number;
     status: string;
+    duration_value?: number | null;
+    duration_unit?: 'days' | 'weeks' | 'months' | null;
+    timeline?: string | null;
+    created_at?: string;
   }[];
 }
 
@@ -72,6 +77,75 @@ export interface UpdateProjectParams {
   is_featured?: boolean;
 }
 
+const CATEGORY_SKILL_MAP: Record<string, string[]> = {
+  // AI Support/Chatbots
+  'cd712613-4973-43ef-aabf-0b50a822d69f': [
+    'GPT-4',
+    'ChatGPT',
+    'OpenAI API',
+    'API Integration',
+    'Claude API',
+  ],
+  // Data Entry/Automation
+  'b5ac074a-d3dd-4829-b008-5a15d664996a': [
+    'Python',
+    'Automation',
+    'RPA',
+    'ETL',
+    'Excel',
+    'API Integration',
+    'Google Cloud',
+    'Docker',
+    'React',
+  ],
+  // Social Media Automation
+  'fe3fee36-061e-440e-91d9-6412dfac504c': [
+    'Marketing',
+    'Social Media',
+    'Content Automation',
+    'Copywriting',
+    'Zapier',
+    'ChatGPT',
+    'GPT-4',
+    'OpenAI API',
+    'API Integration',
+    'React',
+  ],
+};
+
+async function autoInviteFreelancers(projectId: string, categoryId: string, clientId: string) {
+  const skills = CATEGORY_SKILL_MAP[categoryId];
+  if (!skills || skills.length === 0) return;
+
+  try {
+    const { data: freelancers, error: freelancerError } = await supabase
+      .from('freelancer_profiles')
+      .select('user_id')
+      .overlaps('skills', skills)
+      .limit(20);
+
+    if (freelancerError) {
+      console.error('Failed to fetch freelancers for auto-invite:', freelancerError);
+      return;
+    }
+
+    if (!freelancers || freelancers.length === 0) return;
+
+    const invites = freelancers.slice(0, 20).map((freelancer) => ({
+      project_id: projectId,
+      client_id: clientId,
+      freelancer_id: freelancer.user_id,
+    }));
+
+    const { error: inviteError } = await supabase.from('project_invitations').insert(invites);
+    if (inviteError) {
+      console.error('Failed to insert project invitations:', inviteError);
+    }
+  } catch (error) {
+    console.error('Auto-invite failed:', error);
+  }
+}
+
 /**
  * Fetch all published projects
  */
@@ -84,7 +158,16 @@ export async function fetchPublishedProjects() {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
+      ),
+      proposals:proposals!proposals_project_id_fkey(
+        total_budget,
+        status,
+        duration_value,
+        duration_unit,
+        timeline,
+        created_at
       )
     `)
     .eq('is_published', true)
@@ -106,11 +189,16 @@ export async function fetchClientProjects(clientId: string) {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       ),
       proposals:proposals!proposals_project_id_fkey(
         total_budget,
-        status
+        status,
+        duration_value,
+        duration_unit,
+        timeline,
+        created_at
       )
     `)
     .eq('client_id', clientId)
@@ -123,7 +211,9 @@ export async function fetchClientProjects(clientId: string) {
 /**
  * Fetch a single project by ID
  */
-export async function fetchProjectById(projectId: string) {
+export const fetchProjectById = async (id: string): Promise<ProjectWithClient | null> => {
+  const supabase = createClient();
+
   const { data, error } = await supabase
     .from('projects')
     .select(`
@@ -132,15 +222,28 @@ export async function fetchProjectById(projectId: string) {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
+      ),
+      proposals:proposals!proposals_project_id_fkey(
+        total_budget,
+        status,
+        duration_value,
+        duration_unit,
+        timeline,
+        created_at
       )
     `)
-    .eq('id', projectId)
+    .eq('id', id)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching project:', error);
+    return null;
+  }
+
   return data as ProjectWithClient;
-}
+};
 
 /**
  * Create a new project
@@ -185,12 +288,18 @@ export async function createProject(params: CreateProjectParams) {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       )
     `)
     .single();
 
   if (error) throw error;
+
+  // Auto-invite relevant freelancers based on service category (stored in category)
+  if (category) {
+    await autoInviteFreelancers(data.id, category, user.id);
+  }
 
   // Send notifications to invited freelancers
   if (invitedFreelancers.length > 0 && isPublished) {
@@ -241,7 +350,8 @@ export async function updateProject(projectId: string, params: UpdateProjectPara
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       )
     `)
     .single();
@@ -273,6 +383,16 @@ export async function publishProject(projectId: string) {
  * Close a project
  */
 export async function closeProject(projectId: string) {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) throw authError;
+  if (!user) {
+    throw new Error('Not authenticated');
+  }
+
   const { data, error } = await supabase
     .from('projects')
     .update({
@@ -286,12 +406,38 @@ export async function closeProject(projectId: string) {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       )
     `)
     .single();
 
   if (error) throw error;
+
+  const notificationTargets = [data?.client_id, data?.hired_freelancer_id].filter(
+    Boolean
+  ) as string[];
+
+  if (data && notificationTargets.length > 0) {
+    const notifications = notificationTargets.map((userId) => ({
+      user_id: userId,
+      category: 'projects',
+      type: 'project_completed',
+      title: 'Project Completed',
+      message: `The project "${data.title}" has been completed. Please leave a review.`,
+      project_id: projectId,
+      actor_id: user.id,
+      is_read: false,
+      action_url: `/projects/${projectId}`,
+      metadata: { project_name: data.title, action: 'leave_review' },
+    }));
+
+    const { error: notificationError } = await supabase.from('notifications').insert(notifications);
+    if (notificationError) {
+      console.error('Failed to send completion notifications:', notificationError);
+    }
+  }
+
   return data as ProjectWithClient;
 }
 
@@ -312,7 +458,8 @@ export async function hireFreelancer(projectId: string, freelancerId: string) {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       )
     `)
     .single();
@@ -334,7 +481,8 @@ export async function inviteFreelancers(projectId: string, freelancerIds: string
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       )
     `)
     .eq('id', projectId)
@@ -398,11 +546,16 @@ export async function fetchFreelancerProjects(freelancerId: string) {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       ),
       proposals:proposals!proposals_project_id_fkey(
         total_budget,
-        status
+        status,
+        duration_value,
+        duration_unit,
+        timeline,
+        created_at
       )
     `)
     .eq('hired_freelancer_id', freelancerId)
@@ -429,7 +582,8 @@ export async function searchProjects(params: {
         id,
         full_name,
         company_name,
-        avatar_url
+        avatar_url,
+        created_at
       )
     `)
     .eq('is_published', true);

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,6 +37,7 @@ const editExperienceSchema = z.object({
 type EditExperienceFormValues = z.infer<typeof editExperienceSchema>;
 
 interface Experience {
+  id?: string;
   position: string;
   company: string;
   period: string;
@@ -45,30 +47,39 @@ interface Experience {
 interface EditExperienceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  experience?: Experience;
+  initialValues?: Experience | null;
   onSave: (exp: Experience) => Promise<void>;
 }
 
 export function EditExperienceDialog({
   open,
   onOpenChange,
-  experience,
+  initialValues,
   onSave,
 }: EditExperienceDialogProps) {
   const form = useForm<EditExperienceFormValues>({
     resolver: zodResolver(editExperienceSchema),
     defaultValues: {
-      position: experience?.position || '',
-      company: experience?.company || '',
-      period: experience?.period || '',
-      description: experience?.description || '',
+      position: initialValues?.position || '',
+      company: initialValues?.company || '',
+      period: initialValues?.period || '',
+      description: initialValues?.description || '',
     },
   });
+
+  useEffect(() => {
+    form.reset({
+      position: initialValues?.position || '',
+      company: initialValues?.company || '',
+      period: initialValues?.period || '',
+      description: initialValues?.description || '',
+    });
+  }, [initialValues, open, form]);
 
   const handleSubmit = async (values: EditExperienceFormValues) => {
     try {
       await onSave(values);
-      toast.success(experience ? 'Experience updated!' : 'Experience added!');
+      toast.success(initialValues ? 'Experience updated!' : 'Experience added!');
       onOpenChange(false);
       form.reset();
     } catch (error) {
@@ -81,7 +92,7 @@ export function EditExperienceDialog({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>
-            {experience ? 'Edit Experience' : 'Add Work Experience'}
+            {initialValues ? 'Edit Experience' : 'Add Work Experience'}
           </DialogTitle>
           <DialogDescription>
             Add details about your professional experience
@@ -178,7 +189,7 @@ export function EditExperienceDialog({
               </Button>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {experience ? 'Update' : 'Add'} Experience
+                {initialValues ? 'Update' : 'Add'} Experience
               </Button>
             </DialogFooter>
           </form>

@@ -68,6 +68,21 @@ export interface UpdateProposalParams {
   client_feedback?: string;
 }
 
+// Normalize Supabase joins that sometimes return arrays for nested relations
+function normalizeProposal(proposal: any): ProposalWithDetails {
+  const clientRaw = proposal?.project?.client;
+  const client = Array.isArray(clientRaw) ? clientRaw[0] : clientRaw;
+
+  return {
+    ...proposal,
+    project: {
+      ...proposal.project,
+      client,
+    },
+    client,
+  } as ProposalWithDetails;
+}
+
 /**
  * Fetch proposals by project ID
  */
@@ -76,12 +91,12 @@ export async function fetchProjectProposals(projectId: string) {
     .from('proposals')
     .select(`
       *,
+      attachments,
       freelancer:users!proposals_freelancer_id_fkey(
         id,
         full_name,
         avatar_url
       ),
-      attachments,
       project:projects!proposals_project_id_fkey(
         id,
         title,
@@ -104,10 +119,7 @@ export async function fetchProjectProposals(projectId: string) {
   if (error) throw error;
 
   // Flatten the client data from project
-  return data.map((proposal) => ({
-    ...proposal,
-    client: proposal.project.client,
-  })) as ProposalWithDetails[];
+  return data.map((proposal) => normalizeProposal(proposal));
 }
 
 /**
@@ -117,13 +129,25 @@ export async function fetchFreelancerProposals(freelancerId: string) {
   const { data, error } = await supabase
     .from('proposals')
     .select(`
-      *,
+      id,
+      project_id,
+      freelancer_id,
+      cover_letter,
+      total_budget,
+      timeline,
+      duration_value,
+      duration_unit,
+      status,
+      viewed_by_client,
+      client_feedback,
+      attachments,
+      created_at,
+      updated_at,
       freelancer:users!proposals_freelancer_id_fkey(
         id,
         full_name,
         avatar_url
       ),
-      attachments,
       project:projects!proposals_project_id_fkey(
         id,
         title,
@@ -146,10 +170,7 @@ export async function fetchFreelancerProposals(freelancerId: string) {
   if (error) throw error;
 
   // Flatten the client data from project
-  return data.map((proposal) => ({
-    ...proposal,
-    client: proposal.project.client,
-  })) as ProposalWithDetails[];
+  return data.map((proposal) => normalizeProposal(proposal));
 }
 
 /**
@@ -159,13 +180,25 @@ export async function fetchProposalById(proposalId: string) {
   const { data, error } = await supabase
     .from('proposals')
     .select(`
-      *,
+      id,
+      project_id,
+      freelancer_id,
+      cover_letter,
+      total_budget,
+      timeline,
+      duration_value,
+      duration_unit,
+      status,
+      viewed_by_client,
+      client_feedback,
+      attachments,
+      created_at,
+      updated_at,
       freelancer:users!proposals_freelancer_id_fkey(
         id,
         full_name,
         avatar_url
       ),
-      attachments,
       project:projects!proposals_project_id_fkey(
         id,
         title,
@@ -191,17 +224,14 @@ export async function fetchProposalById(proposalId: string) {
   if (!data) return null;
 
   // Flatten the client data from project
-  return {
-    ...data,
-    client: data.project.client,
-  } as ProposalWithDetails;
+  return normalizeProposal(data);
 }
 
 /**
  * Create a new proposal
  */
 export async function createProposal(params: CreateProposalParams) {
-  const { projectId, coverLetter, totalBudget, duration_value, duration_unit, timeline } = params;
+  const { projectId, coverLetter, totalBudget, duration_value, duration_unit, timeline, attachments } = params;
   const formattedTimeline = timeline || formatDurationLabel(duration_value, duration_unit);
 
   // Get current user
@@ -240,6 +270,7 @@ if (existingProposal) {
       timeline: formattedTimeline,
       duration_value,
       duration_unit,
+      attachments: attachments ?? [],
     })
     .select(`
       *,
@@ -296,10 +327,7 @@ if (existingProposal) {
   }
 
   // Flatten the client data from project
-  return {
-    ...data,
-    client: data.project.client,
-  } as ProposalWithDetails;
+  return normalizeProposal(data);
 }
 
 /**
@@ -344,10 +372,7 @@ export async function updateProposal(proposalId: string, params: UpdateProposalP
   if (error) throw error;
 
   // Flatten the client data from project
-  return {
-    ...data,
-    client: data.project.client,
-  } as ProposalWithDetails;
+  return normalizeProposal(data);
 }
 
 /**

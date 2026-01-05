@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, DollarSign, TrendingUp, FileText, Upload } from 'lucide-react';
 import { useAuth } from '@/features/auth/lib/auth-client';
@@ -19,6 +20,8 @@ import { useProject as useProjectDetails } from '@/features/projects/hooks/use-p
 import { SubmitProposalForm } from '@/features/proposals/components/submit-proposal-form';
 import { useUserProposalForProject } from '@/features/proposals/api/use-user-proposal';
 import type { MilestoneType } from '../api/payments';
+import { ReviewModal } from '@/features/reviews/components/review-modal';
+import { useCreateReview, useProjectReview } from '@/features/reviews/hooks/use-reviews';
 
 interface ActiveProjectViewProps {
   projectId: string;
@@ -30,6 +33,7 @@ export function ActiveProjectView({ projectId, fromInvitation }: ActiveProjectVi
   const [activeTab, setActiveTab] = useState('messages');
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [autoPayMilestone, setAutoPayMilestone] = useState<MilestoneType | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,6 +60,18 @@ export function ActiveProjectView({ projectId, fromInvitation }: ActiveProjectVi
 
   const showProposals = isClient && (projectStatus === 'open' || projectStatus === 'draft');
   const showWorkTabs = projectStatus === 'in_progress' || projectStatus === 'completed';
+  const revieweeId = isClient ? projectDetails?.hired_freelancer_id : isFreelancer ? projectDetails?.client_id : null;
+  const isProjectCompleted = projectStatus === 'completed' || project?.status === 'completed';
+  const shouldCheckReview =
+    isProjectCompleted && Boolean(revieweeId) && (isClient || isFreelancer) && Boolean(user?.id);
+
+  const { data: existingReview, isLoading: isReviewLoading } = useProjectReview(
+    projectId,
+    user?.id,
+    shouldCheckReview
+  );
+
+  const createReviewMutation = useCreateReview();
 
   // 4. ALL EFFECT HOOKS (Must stay above early returns)
   useEffect(() => {
@@ -101,6 +117,30 @@ export function ActiveProjectView({ projectId, fromInvitation }: ActiveProjectVi
     setAutoPayMilestone('final_50');
   };
 
+  const shouldShowReviewCta =
+    isProjectCompleted &&
+    (isClient || isFreelancer) &&
+    Boolean(revieweeId) &&
+    !isReviewLoading &&
+    !existingReview;
+
+  const handleSubmitReview = async (values: { rating: number; comment: string }) => {
+    if (!user?.id || !revieweeId) return;
+
+    try {
+      await createReviewMutation.mutateAsync({
+        projectId,
+        reviewerId: user.id,
+        revieweeId,
+        rating: values.rating,
+        comment: values.comment,
+      });
+      setReviewModalOpen(false);
+    } catch (error) {
+      console.error('Failed to submit review', error);
+    }
+  };
+
   // 6. CONDITIONAL RETURNS (Now safe to use)
   if (isLoading) {
     return (
@@ -140,6 +180,20 @@ export function ActiveProjectView({ projectId, fromInvitation }: ActiveProjectVi
     <div className="min-h-screen bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ProjectHeader project={project} />
+
+        {shouldShowReviewCta && (
+          <div className="mb-4">
+            <div className="p-4 border rounded-lg bg-primary/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="font-medium">Share your experience</p>
+                <p className="text-sm text-muted-foreground">
+                  Leave a review to help the community and update ratings.
+                </p>
+              </div>
+              <Button onClick={() => setReviewModalOpen(true)}>Leave a Review</Button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
@@ -223,6 +277,15 @@ export function ActiveProjectView({ projectId, fromInvitation }: ActiveProjectVi
           <ProjectSidebar project={project} />
         </div>
       </div>
+
+      <ReviewModal
+        open={reviewModalOpen}
+        onOpenChange={setReviewModalOpen}
+        reviewTargetName={isClient ? project.freelancer : project.client}
+        projectTitle={project.title}
+        onSubmit={handleSubmitReview}
+        isSubmitting={createReviewMutation.isPending}
+      />
     </div>
   );
 }

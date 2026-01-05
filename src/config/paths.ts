@@ -65,6 +65,9 @@ export const paths = {
     trustSafety: {
       getHref: () => '/trust-and-safety',
     },
+    examples: {
+      getHref: () => '/examples',
+    },
     contact: {
       getHref: () => '/contact',
     },

@@ -32,6 +32,9 @@ export const getClientProfile = async (userId: string): Promise<ClientProfileDat
     throw new ApiError(404, 'User not found');
   }
 
+  const averageRating = typeof user.average_rating === 'number' ? user.average_rating : null;
+  const totalReviews = typeof user.total_reviews === 'number' ? user.total_reviews : 0;
+
   // Fetch client profile
   const { data: profileData, error: profileError } = await supabase
     .from('client_profiles')
@@ -51,6 +54,146 @@ export const getClientProfile = async (userId: string): Promise<ClientProfileDat
     throw new ApiError(404, 'Client profile not found');
   }
 
+  const memberSince = new Date(user.created_at).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+  });
+
+  // Load projects + payment data to derive client stats
+  const { data: projectsData, error: projectsError } = await supabase
+    .from('projects')
+    .select(
+      `
+        id,
+        title,
+        description,
+        status,
+        fixed_budget,
+        hired_freelancer_id,
+        created_at,
+        closed_at,
+        proposals:proposals!proposals_project_id_fkey(
+          status,
+          total_budget,
+          freelancer_id,
+          freelancer:users!freelancer_id(full_name)
+        ),
+        payment_transactions:payment_transactions!payment_transactions_project_id_fkey(amount,status,type,user_id)
+      `
+    )
+    .eq('client_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (projectsError) {
+    console.error('Client projects fetch error:', projectsError);
+  }
+
+  const projects = projectsData ?? [];
+
+  const successfulPayments = (project: any) =>
+    (project.payment_transactions ?? []).filter(
+      (tx: any) => tx.type === 'payment' && (tx.status === 'succeeded' || tx.status === 'completed')
+    );
+
+  const { data: reviewsData, error: reviewsError } = await supabase
+    .from('reviews')
+    .select(
+      `
+        id,
+        rating,
+        comment,
+        created_at,
+        project_id,
+        reviewer:users!reviews_reviewer_id_fkey(
+          id,
+          full_name,
+          avatar_url
+        ),
+        project:projects!reviews_project_id_fkey(
+          id,
+          title
+        )
+      `
+    )
+    .eq('reviewee_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (reviewsError) {
+    console.error('Failed to fetch client reviews:', reviewsError);
+  }
+
+  const reviews =
+    reviewsData?.map((review: any) => ({
+      id: review.id,
+      reviewer_id: review.reviewer?.id ?? '',
+      reviewer_name: review.reviewer?.full_name || 'Anonymous',
+      reviewer_avatar: review.reviewer?.avatar_url || null,
+      rating: review.rating,
+      comment: review.comment,
+      created_at: review.created_at,
+      project_id: review.project_id,
+      project_title: review.project?.title || null,
+    })) ?? [];
+
+  const totalSpentCents = projects.reduce((sum, project) => {
+    const payments = successfulPayments(project);
+    return sum + payments.reduce((paymentSum: number, tx: any) => paymentSum + Number(tx.amount || 0), 0);
+  }, 0);
+
+  const projectsWithSpend = projects.filter((project) => successfulPayments(project).length > 0).length;
+
+  const totalSpentDollars = totalSpentCents / 100;
+  const avgProjectSizeDollars = projectsWithSpend > 0 ? totalSpentDollars / projectsWithSpend : 0;
+
+  const formatCurrency = (amount: number) =>
+    amount.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    });
+
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+    });
+  };
+
+  const pastProjects = projects
+    .filter((project) => ['completed', 'cancelled', 'in_progress'].includes(project.status))
+    .map((project) => {
+      const acceptedProposal = (project.proposals ?? []).find((proposal: any) => proposal.status === 'accepted');
+      const budgetValue =
+        acceptedProposal?.total_budget != null
+          ? Number(acceptedProposal.total_budget)
+          : project.fixed_budget != null
+          ? Number(project.fixed_budget)
+          : 0;
+
+      const contractorName =
+        (acceptedProposal as any)?.freelancer?.full_name ||
+        (project.hired_freelancer_id ? 'Hired Expert' : 'Not hired yet');
+
+      const statusLabel =
+        project.status === 'completed'
+          ? 'Completed'
+          : project.status === 'cancelled'
+          ? 'Cancelled'
+          : 'In Progress';
+
+      return {
+        id: project.id,
+        title: project.title,
+        status: statusLabel,
+        budget: formatCurrency(budgetValue),
+        contractor: contractorName,
+        completedDate: formatDate(project.closed_at ?? project.created_at),
+        description: project.description || '',
+      };
+    });
+
   // Map Supabase data to ClientProfileData type
   return {
     id: user.id,
@@ -59,30 +202,27 @@ export const getClientProfile = async (userId: string): Promise<ClientProfileDat
     company: user.company_name || '',
     avatar: user.avatar_url || profile.profile_image || '',
     location: profile.location || '',
-    memberSince: new Date(user.created_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-    }),
-    rating: 5.0,
-    reviewCount: 0,
+    memberSince,
+    rating: averageRating ?? 0,
+    reviewCount: totalReviews,
+    average_rating: averageRating,
+    total_reviews: totalReviews,
     verified: user.email_verified,
     industries: profile.industry ? [profile.industry] : [],
-    bio: profile.about_company || '',
+    bio: profile.about_company || (profile as any).description || '',
+    languages: Array.isArray(profile.languages) ? profile.languages : [],
     lookingFor: profile.project_goals
       ? profile.project_goals.map((goal: string) => ({
           title: goal,
           description: '',
         }))
       : [],
+    reviews,
     stats: {
-      memberSince: new Date(user.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-      }),
-      projectsPosted: 0, // TODO: Calculate from projects table
-      totalSpent: '$0', // TODO: Calculate from payments table
-      repeatExperts: '0%',
-      avgProjectSize: '$0',
+      memberSince,
+      projectsPosted: projects.length,
+      totalSpent: formatCurrency(totalSpentDollars),
+      avgProjectSize: formatCurrency(avgProjectSizeDollars),
     },
     verification: {
       paymentMethodVerified: true,
@@ -92,7 +232,7 @@ export const getClientProfile = async (userId: string): Promise<ClientProfileDat
       emailVerified: user.email_verified,
     },
     recentActivity: [],
-    pastProjects: [],
+    pastProjects,
   };
 };
 
@@ -119,10 +259,13 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
     throw new ApiError(404, 'User not found');
   }
 
+  const averageRating = typeof user.average_rating === 'number' ? user.average_rating : null;
+  const totalReviews = typeof user.total_reviews === 'number' ? user.total_reviews : 0;
+
   // Fetch freelancer profile
   const { data: profileData, error: profileError } = await supabase
     .from('freelancer_profiles')
-    .select('*')
+    .select('*, languages')
     .eq('user_id', userId);
 
   if (profileError) {
@@ -165,6 +308,46 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
   const totalEarnedCents = (earningsData ?? []).reduce((sum, tx) => sum + tx.amount, 0);
   const totalEarnedFormatted = `$${(totalEarnedCents / 100).toFixed(2)}`;
 
+  const { data: reviewsData, error: reviewsError } = await supabase
+    .from('reviews')
+    .select(
+      `
+        id,
+        rating,
+        comment,
+        created_at,
+        project_id,
+        reviewer:users!reviews_reviewer_id_fkey(
+          id,
+          full_name,
+          avatar_url
+        ),
+        project:projects!reviews_project_id_fkey(
+          id,
+          title
+        )
+      `
+    )
+    .eq('reviewee_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (reviewsError) {
+    console.error('Failed to fetch freelancer reviews:', reviewsError);
+  }
+
+  const reviews =
+    reviewsData?.map((review: any) => ({
+      id: review.id,
+      reviewer_id: review.reviewer?.id ?? '',
+      reviewer_name: review.reviewer?.full_name || 'Anonymous',
+      reviewer_avatar: review.reviewer?.avatar_url || null,
+      rating: review.rating,
+      comment: review.comment,
+      created_at: review.created_at,
+      project_id: review.project_id,
+      project_title: review.project?.title || null,
+    })) ?? [];
+
   // Map Supabase data to FreelancerProfileData type
   return {
     id: user.id,
@@ -177,8 +360,10 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
       min: profile.hourly_rate ? Number(profile.hourly_rate) - 10 : 50,
       max: profile.hourly_rate ? Number(profile.hourly_rate) + 10 : 100,
     },
-    rating: 5.0,
-    reviewCount: 0,
+    rating: averageRating ?? 0,
+    reviewCount: totalReviews,
+    average_rating: averageRating,
+    total_reviews: totalReviews,
     verified: user.email_verified,
     skills: profile.skills || [],
     bio: profile.bio || '',
@@ -205,24 +390,18 @@ export const getFreelancerProfile = async (userId: string): Promise<FreelancerPr
           },
         ]
       : [],
-    reviews: [],
+    reviews,
     experience: (profile.work_experience as any[]) || [],
     stats: {
       projectsCompleted: completedProjects || 0,
       totalEarnings: totalEarnedFormatted,
-      repeatClients: '0%',
       onTimeDelivery: '100%',
     },
     availability: {
       status: 'Available',
       responseTime: '< 2 hours',
     },
-    languages: [
-      {
-        language: 'English',
-        proficiency: 'Native',
-      },
-    ],
+    languages: Array.isArray(profile.languages) ? profile.languages : [],
     topTechnologies: profile.skills
       ? profile.skills.slice(0, 5).map((skill: string) => ({
           name: skill,
@@ -265,7 +444,10 @@ export const updateClientProfile = async (
   if (data.industries !== undefined && data.industries.length > 0) {
     profileUpdates.industry = data.industries[0];
   }
-  if (data.bio !== undefined) profileUpdates.about_company = data.bio;
+  if (data.bio !== undefined) {
+    profileUpdates.about_company = data.bio;
+  }
+  if (data.languages !== undefined) profileUpdates.languages = data.languages;
 
   if (Object.keys(profileUpdates).length > 0) {
     const { error: profileError } = await supabase
@@ -313,6 +495,7 @@ export const updateFreelancerProfile = async (
   if (data.title !== undefined) profileUpdates.title = data.title;
   if (data.location !== undefined) profileUpdates.location = data.location;
   if (data.bio !== undefined) profileUpdates.bio = data.bio;
+  if (data.languages !== undefined) profileUpdates.languages = data.languages;
   if (data.hourlyRate !== undefined) {
     // Use the average of min and max for storage
     const avgRate = (data.hourlyRate.min + data.hourlyRate.max) / 2;
@@ -372,6 +555,26 @@ export const updateFreelancerSkills = async (
 
   if (error) {
     throw new ApiError(500, `Failed to update skills: ${error.message}`);
+  }
+};
+
+/**
+ * Update freelancer languages
+ * @param userId - The user ID
+ * @param languages - Array of language strings
+ * @returns Promise<void>
+ */
+export const updateFreelancerLanguages = async (
+  userId: string,
+  languages: string[]
+): Promise<void> => {
+  const { error } = await supabase
+    .from('freelancer_profiles')
+    .update({ languages, updated_at: new Date().toISOString() })
+    .eq('user_id', userId);
+
+  if (error) {
+    throw new ApiError(500, `Failed to update languages: ${error.message}`);
   }
 };
 

@@ -151,7 +151,7 @@ export function ReviewWorkDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {decision === 'approve' ? 'Feedback (Optional)' : 'Revision Details'}
+                      {decision === 'approve' ? 'Feedback' : 'Revision Details'}
                     </FormLabel>
                     <FormControl>
                       <Textarea

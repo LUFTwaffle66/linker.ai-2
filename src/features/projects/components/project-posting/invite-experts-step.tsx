@@ -1,15 +1,16 @@
 import { Search, UserPlus } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FreelancerCard } from './freelancer-card';
-import { useBrowseFreelancers } from '@/features/browse';
-import type { FreelancerOption } from '../../types';
+import { supabase } from '@/lib/supabase/client';
 
 interface InviteExpertsStepProps {
   searchQuery: string;
   selectedFreelancers: string[];
+  projectSkills: string[];
   onSearchChange: (value: string) => void;
   onToggleFreelancer: (id: string) => void;
   onBack: () => void;
@@ -19,14 +20,117 @@ interface InviteExpertsStepProps {
 export function InviteExpertsStep({
   searchQuery,
   selectedFreelancers,
+  projectSkills,
   onSearchChange,
   onToggleFreelancer,
   onBack,
   onNext,
 }: InviteExpertsStepProps) {
-  const { data: freelancers, isLoading, error } = useBrowseFreelancers({ search: searchQuery });
+  const [freelancers, setFreelancers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredFreelancers = freelancers || [];
+  useEffect(() => {
+    async function fetchFreelancers() {
+      // 1. Start Loading
+      setLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('freelancer_profiles')
+          .select(`
+            *,
+            user:users (
+              id,
+              full_name,
+              avatar_url,
+              projects:projects!projects_hired_freelancer_id_fkey ( status )
+            )
+          `);
+
+        if (error) {
+          console.error('Supabase Error fetching freelancers:', error);
+          return;
+        }
+
+        if (data) {
+          const mapped = data.map((profile: any) => {
+            // Match Score
+            const profileSkills = profile.skills || [];
+            const matchCount = profileSkills.filter((skill: string) => 
+              projectSkills.includes(skill)
+            ).length;
+
+            // Projects Completed (Case Insensitive)
+            const userProjects = profile.user?.projects || [];
+            const completedCount = userProjects.filter(
+              (p: any) => p.status?.toLowerCase() === 'completed'
+            ).length;
+
+            // Display Title
+            const displayTitle = profile.title || profile.job_title || 'Freelancer';
+
+            return {
+              id: profile.user?.id || profile.id,
+              profileId: profile.id,
+              name: profile.user?.full_name || 'Unknown Freelancer',
+              title: displayTitle,
+              skills: profileSkills,
+              hourlyRate: profile.hourly_rate || 0,
+              avatarUrl: profile.user?.avatar_url || '',
+              matchScore: matchCount,
+              projectsCompleted: completedCount,
+            };
+          });
+
+          // Sort by Match Score
+          const sorted = mapped.sort((a, b) => b.matchScore - a.matchScore);
+          setFreelancers(sorted);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      } finally {
+        // 4. STOP LOADING
+        setLoading(false);
+      }
+    }
+
+    fetchFreelancers();
+  }, [projectSkills, selectedFreelancers.length]);
+
+  const scoredFreelancers = useMemo(() => {
+    return freelancers
+      .map((freelancer) => {
+        const overlap = (freelancer.skills || []).filter((skill: string) => projectSkills.includes(skill));
+        const score = overlap.length;
+        const completedProjects =
+          freelancer.projectsCompleted ??
+          freelancer.total_projects_completed ??
+          freelancer.projects_completed ??
+          freelancer.portfolio?.length ??
+          0;
+        return {
+          id: freelancer.user_id || freelancer.id,
+          name: freelancer.user?.full_name || '',
+          title: freelancer.title,
+          avatar: freelancer.user?.avatar_url || '',
+          skills: freelancer.skills || [],
+          hourlyRate: freelancer.hourly_rate,
+          completedProjects,
+          overlapSkills: overlap,
+          score,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  }, [freelancers, projectSkills]);
+
+  // Auto-select top 3 freelancers with at least 1 matching skill on mount
+  useEffect(() => {
+    if (!selectedFreelancers.length && projectSkills.length > 0) {
+      const topMatches = scoredFreelancers.filter((f) => f.score > 0).slice(0, 3);
+      topMatches.forEach((f) => onToggleFreelancer(f.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -72,36 +176,34 @@ export function InviteExpertsStep({
 
           {/* Freelancer Results */}
           <div className="space-y-3 max-h-[500px] overflow-y-auto">
-            {isLoading ? (
+            {loading ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>Loading...</p>
               </div>
-            ) : error ? (
-              <div className="text-center py-8 text-destructive">
-                <p>Error loading freelancers.</p>
-              </div>
-            ) : filteredFreelancers.length === 0 ? (
+            ) : scoredFreelancers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No AI experts found matching your search</p>
               </div>
             ) : (
-              filteredFreelancers.map((freelancer) => (
+              scoredFreelancers.map((freelancer) => (
                 <FreelancerCard
                   key={freelancer.id}
                   freelancer={{
-                    id: freelancer.user_id,
-                    name: freelancer.user.full_name || '',
+                    id: freelancer.id,
+                    name: freelancer.name,
                     title: freelancer.title,
-                    avatar: freelancer.user.avatar_url || '',
-                    rating: 4.9,
-                    reviewCount: 87,
+                    avatar: freelancer.avatar,
+                    averageRating: null,
+                    totalReviews: 0,
                     skills: freelancer.skills,
-                    hourlyRate: freelancer.hourly_rate,
-                    completedProjects: freelancer.portfolio?.length || 0,
+                    hourlyRate: freelancer.hourlyRate,
+                    completedProjects: freelancer.completedProjects,
                   }}
-                  isSelected={selectedFreelancers.includes(freelancer.user_id)}
-                  onToggle={() => onToggleFreelancer(freelancer.user_id)}
+                  overlapSkills={freelancer.overlapSkills}
+                  matchScore={freelancer.score}
+                  isSelected={selectedFreelancers.includes(freelancer.id)}
+                  onToggle={() => onToggleFreelancer(freelancer.id)}
                 />
               ))
             )}

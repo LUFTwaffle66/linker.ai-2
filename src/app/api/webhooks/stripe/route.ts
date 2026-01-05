@@ -153,7 +153,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       .from('projects')
       .update(updateData)
       .eq('id', projectId)
-      .select('id, upfront_paid, final_paid, status')
+      .select('id, title, client_id, hired_freelancer_id, upfront_paid, final_paid, status')
       .single();
 
     if (projectError) throw new Error(`Project Update Failed: ${projectError.message}`);
@@ -202,6 +202,33 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
         });
         if (finalClientNotifError) {
           console.error('Final payment client notification failed:', finalClientNotifError);
+        }
+      }
+
+      // Notify both client and freelancer that the project is completed
+      const completionTargets = [clientId, freelancerId].filter(Boolean) as string[];
+      const projectTitle = updatedProject.title || 'Project';
+
+      if (completionTargets.length > 0) {
+        const completionPayload = completionTargets.map((userId) => ({
+          user_id: userId,
+          category: 'projects',
+          type: 'project_completed',
+          title: 'Project Completed',
+          message: `The project "${projectTitle}" has been completed. Please leave a review.`,
+          project_id: projectId,
+          actor_id: clientId,
+          is_read: false,
+          action_url: `/projects/${projectId}`,
+          metadata: { project_name: projectTitle, action: 'leave_review' },
+        }));
+
+        const { error: completionNotifError } = await supabaseAdmin
+          .from('notifications')
+          .insert(completionPayload);
+
+        if (completionNotifError) {
+          console.error('Project completion notifications failed:', completionNotifError);
         }
       }
     }

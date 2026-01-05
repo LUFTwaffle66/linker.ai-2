@@ -37,6 +37,7 @@ export const SKILLS = [
   'Azure',
   'Docker',
   'Kubernetes',
+  'n8n',
   'SQL',
   'NoSQL',
   'React',

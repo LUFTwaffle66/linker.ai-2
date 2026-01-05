@@ -10,13 +10,13 @@ import { paths } from '@/config/paths';
 import { proposalSchema, type ProposalFormData } from '../types';
 import { useCreateProposal } from '../hooks/use-proposals';
 import type { ProjectWithClient } from '@/features/projects/api/projects';
+import { supabase } from '@/lib/supabase';
 import {
   CoverLetterSection,
   BudgetTimelineSection,
   PaymentStructureCard,
   AttachmentsSection,
   ProjectOverviewCard,
-  ClientInfoCard,
   TipsCard,
   SuccessDialog,
 } from './submit-proposal';
@@ -38,6 +38,7 @@ export function SubmitProposalForm({ project, onProposalSubmitted }: SubmitPropo
   const router = useRouter();
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(proposalSchema),
@@ -62,19 +63,65 @@ export function SubmitProposalForm({ project, onProposalSubmitted }: SubmitPropo
 
   const onSubmit = async (data: ProposalFormData) => {
     try {
+      setIsUploading(true);
+
+      // Upload files to Supabase Storage and collect their paths/URLs
+      const uploadedAttachments: Array<{
+        name: string;
+        path: string;
+        url: string;
+        size: number;
+        type: string;
+      }> = [];
+
+      for (const file of attachments) {
+        const fileExt = file.name.split('.').pop() || 'file';
+        const uniqueName =
+          (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : Math.random().toString(36).slice(2)) + `_${Date.now()}.${fileExt}`;
+        const filePath = `proposals/${project.id}/${uniqueName}`;
+
+        const { error: uploadError } = await supabase.storage.from('proposal-files').upload(filePath, file);
+
+        if (uploadError) {
+          console.error('Error uploading file:', uploadError);
+          continue;
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('proposal-files').getPublicUrl(filePath);
+
+        if (!publicUrl) {
+          console.error('No public URL returned for file:', filePath);
+          continue;
+        }
+
+        uploadedAttachments.push({
+          name: file.name,
+          path: filePath,
+          url: publicUrl,
+          size: file.size,
+          type: file.type,
+        });
+      }
+
       await createProposalMutation.mutateAsync({
         projectId: project.id,
         coverLetter: data.coverLetter,
         totalBudget: data.totalBudget,
         duration_value: data.duration_value,
         duration_unit: data.duration_unit,
-        attachments: data.attachments || [],
+        attachments: uploadedAttachments,
       });
 
       setShowSuccessDialog(true);
     } catch (error) {
       // Error is handled by the mutation hook
       console.error('Failed to submit proposal:', error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -130,8 +177,8 @@ export function SubmitProposalForm({ project, onProposalSubmitted }: SubmitPropo
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-4">
-                  <Button type="submit" size="lg" className="flex-1">
-                    Submit Proposal
+                  <Button type="submit" size="lg" className="flex-1" disabled={isUploading || createProposalMutation.isPending}>
+                    {isUploading || createProposalMutation.isPending ? 'Submitting...' : 'Submit Proposal'}
                   </Button>
                 </div>
               </div>
@@ -139,15 +186,6 @@ export function SubmitProposalForm({ project, onProposalSubmitted }: SubmitPropo
               {/* Sidebar Column */}
               <aside className="space-y-6">
                 <ProjectOverviewCard project={project} />
-                <ClientInfoCard
-                  client={{
-                    name: project.client.company_name || project.client.full_name,
-                    rating: 4.8, // TODO: Add rating to database
-                    verified: true,
-                    spent: '$0', // TODO: Calculate total spent
-                  }}
-                  proposalCount={project.proposal_count}
-                />
                 <TipsCard />
               </aside>
             </div>

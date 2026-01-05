@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/features/auth/lib/auth-client';
+import { supabase } from '@/lib/supabase/client'; // <--- Import Supabase
 import { User, Wallet, Settings, LogOut, Moon, LayoutDashboard, Briefcase } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
@@ -20,7 +21,52 @@ export function ProfileDropdown() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [onlineForMessages, setOnlineForMessages] = useState(true);
+  
+  // 1. Initialize state (default to false until loaded to avoid flickering 'true')
+  const [onlineForMessages, setOnlineForMessages] = useState(false);
+
+  // 2. Fetch the REAL status when the menu loads
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchStatus = async () => {
+      const { data } = await supabase
+        .from('users') // Query the table directly
+        .select('is_online_for_chat')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        setOnlineForMessages(data.is_online_for_chat ?? false);
+      }
+    };
+
+    fetchStatus();
+  }, [user?.id]);
+
+  // 3. Create a function to handle the Toggle
+  const toggleOnlineStatus = async (checked: boolean) => {
+    if (!user?.id) return;
+
+    // A. Optimistic Update (Change UI instantly)
+    setOnlineForMessages(checked);
+
+    // B. Update Database
+    const { error } = await supabase
+      .from('users')
+      .update({ 
+        is_online_for_chat: checked,
+        // Optional: Update last_seen so they look "Fresh"
+        last_login: new Date().toISOString() 
+      })
+      .eq('id', user.id);
+
+    // C. Revert if failed
+    if (error) {
+      console.error('Failed to update status:', error);
+      setOnlineForMessages(!checked);
+    }
+  };
 
   // Helper function to get user initials
   const getUserInitials = () => {
@@ -78,7 +124,10 @@ export function ProfileDropdown() {
         {/* Online Status Toggle */}
         <div className="flex items-center justify-between px-3 py-2">
           <span className="text-sm">Online for messages</span>
-          <Switch checked={onlineForMessages} onCheckedChange={setOnlineForMessages} />
+          <Switch 
+            checked={onlineForMessages} 
+            onCheckedChange={toggleOnlineStatus} // <--- Connect the new function here
+          />
         </div>
 
         <DropdownMenuSeparator />

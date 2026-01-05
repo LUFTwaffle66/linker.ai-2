@@ -1,6 +1,6 @@
 'use client';
 
-import { differenceInDays, startOfDay } from 'date-fns';
+import { addDays, differenceInDays, startOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -16,14 +16,33 @@ export function ProjectSidebar({ project }: ProjectSidebarProps) {
   const budgetReceived = project.upfrontPaid ? project.upfrontAmount : 0;
   const budgetPending = project.finalPaid ? 0 : project.finalAmount;
 
-  // Calculate days remaining from deadline
-  const calculateDaysRemaining = () => {
-    const deadlineDate = project.deadline ? startOfDay(new Date(project.deadline)) : null;
-    const today = startOfDay(new Date());
-    if (!deadlineDate) return 0;
+  const parseDate = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  };
 
-    const diffDays = differenceInDays(deadlineDate, today);
-    return diffDays > 0 ? diffDays : 0;
+  const convertDurationToDays = (
+    value?: number | null,
+    unit?: ProjectInfo['durationUnit']
+  ) => {
+    if (!value || !unit) return null;
+    if (unit === 'months') return value * 30;
+    if (unit === 'weeks') return value * 7;
+    return value;
+  };
+
+  // Calculate days remaining from deadline based on agreed duration/start date
+  const calculateDaysRemaining = () => {
+    const startDate = parseDate(project.startedAt || project.startDate);
+    const durationDays = convertDurationToDays(project.durationValue, project.durationUnit);
+    if (!startDate || !durationDays) return null;
+
+    const computedDeadline = startOfDay(addDays(startDate, durationDays));
+    const today = new Date();
+    const msDiff = computedDeadline.getTime() - today.getTime();
+    const days = Math.ceil(msDiff / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
   };
 
   const daysRemaining = calculateDaysRemaining();
@@ -63,10 +82,16 @@ export function ProjectSidebar({ project }: ProjectSidebarProps) {
             </div>
           </div>
           <Separator />
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Days Remaining</span>
-            <span className="font-medium">{daysRemaining} days</span>
-          </div>
+          {daysRemaining !== null ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Days Remaining</span>
+              <span className="font-medium">{daysRemaining} day{daysRemaining === 1 ? '' : 's'}</span>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Open for proposals
+            </div>
+          )}
         </CardContent>
       </Card>
 

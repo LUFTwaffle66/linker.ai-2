@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -50,15 +51,28 @@ export function EditAboutDialog({
       bio: currentBio,
     },
   });
+  const lastSavedBio = useRef(currentBio);
+
+  useEffect(() => {
+    form.reset({ bio: currentBio });
+    lastSavedBio.current = currentBio;
+  }, [currentBio, form]);
 
   const handleSubmit = async (values: EditAboutFormValues) => {
     try {
       await onSave(values.bio);
       toast.success('Bio updated successfully!');
       onOpenChange(false);
+      lastSavedBio.current = values.bio;
     } catch (error) {
       toast.error('Failed to update bio');
     }
+  };
+
+  const handleBlur = async () => {
+    const value = form.getValues('bio');
+    if (value === lastSavedBio.current || form.formState.isSubmitting) return;
+    await form.handleSubmit(handleSubmit)();
   };
 
   return (
@@ -79,11 +93,12 @@ export function EditAboutDialog({
                 <FormItem>
                   <FormLabel>About Me</FormLabel>
                   <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Describe your experience, expertise, and what you bring to projects..."
-                      className="min-h-[200px]"
-                    />
+                  <Textarea
+                    {...field}
+                    placeholder="Describe your experience, expertise, and what you bring to projects..."
+                    className="min-h-[200px]"
+                    onBlur={handleBlur}
+                  />
                   </FormControl>
                   <FormDescription>
                     {field.value.length}/2000 characters

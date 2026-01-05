@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Star,
@@ -16,12 +17,17 @@ import {
   Plus,
   Calendar,
   DollarSign,
-  Share2
+  Share2,
+  Pencil,
+  Loader2
 } from 'lucide-react';
 import { paths } from '@/config/paths';
 import { ShareProfileDialog } from './share-profile-dialog';
 import type { ClientProfileData } from '../types';
 import { useAuth } from '@/features/auth/lib/auth-client';
+import { EditLanguagesDialog } from './edit-languages-dialog';
+import { useUpdateClientProfile } from '../hooks';
+import { toast } from 'sonner';
 
 interface ClientProfileProps {
   profile: ClientProfileData;
@@ -34,7 +40,23 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
   const router = useRouter();
   const { user } = useAuth();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [aboutValue, setAboutValue] = useState(profile.bio || '');
+  const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [aboutError, setAboutError] = useState<string | null>(null);
+  const [languages, setLanguages] = useState<string[]>(profile.languages || []);
+  const [editLanguagesOpen, setEditLanguagesOpen] = useState(false);
+  const [isSavingAbout, setIsSavingAbout] = useState(false);
+  const [isSavingLanguages, setIsSavingLanguages] = useState(false);
+  const updateProfileMutation = useUpdateClientProfile();
   const isSelf = isOwnProfile || user?.id === clientId || user?.id === profile.id;
+  const averageRating = profile.average_rating ?? profile.rating ?? null;
+  const totalReviews = profile.total_reviews ?? profile.reviewCount ?? 0;
+  const hasReviews = (totalReviews || 0) > 0;
+
+  useEffect(() => {
+    setAboutValue(profile.bio || '');
+    setLanguages(profile.languages || []);
+  }, [profile.bio, profile.languages]);
 
   const handlePostProject = () => {
     router.push(paths.app.postProject.getHref());
@@ -50,6 +72,63 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
 
   const handleShare = () => {
     setShareDialogOpen(true);
+  };
+
+  const handleSaveAbout = async () => {
+    if (!isSelf) return;
+    const previousAbout = profile.bio || '';
+    setIsSavingAbout(true);
+    setAboutError(null);
+    try {
+      const updated = await updateProfileMutation.mutateAsync({
+        clientId,
+        data: { bio: aboutValue },
+      });
+      setAboutValue(updated.bio || '');
+      setIsEditingAbout(false);
+      toast.success('About section updated');
+    } catch (error) {
+      setAboutValue(previousAbout);
+      const message = error instanceof Error ? error.message : 'Failed to update about section';
+      setAboutError(message);
+      toast.error(message);
+    } finally {
+      setIsSavingAbout(false);
+    }
+  };
+
+  const handleCancelAboutEdit = () => {
+    setAboutValue(profile.bio || '');
+    setAboutError(null);
+    setIsEditingAbout(false);
+  };
+
+  const handleToggleLanguage = async (language: string) => {
+    if (!isSelf || isSavingLanguages) return;
+
+    const previousLanguages = [...languages];
+    const exists = languages.includes(language);
+    const updatedLanguages = exists
+      ? languages.filter((l) => l !== language)
+      : [...languages, language];
+
+    setLanguages(updatedLanguages);
+    setIsSavingLanguages(true);
+
+    try {
+      const updatedProfile = await updateProfileMutation.mutateAsync({
+        clientId,
+        data: { languages: updatedLanguages },
+      });
+      setLanguages(updatedProfile.languages || updatedLanguages);
+      toast.success('Languages updated');
+    } catch (error) {
+      setLanguages(previousLanguages);
+      const message = error instanceof Error ? error.message : 'Failed to update languages';
+      toast.error(message);
+    } finally {
+      setIsSavingLanguages(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -82,14 +161,14 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
                       </div>
                     )}
                     <div className="flex items-center gap-1">
-                      {profile.reviewCount > 0 ? (
+                      {hasReviews ? (
                         <>
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{profile.rating.toFixed(1)}</span>
-                          <span className="text-muted-foreground">({profile.reviewCount} reviews)</span>
+                          <span className="font-medium">{(averageRating ?? 0).toFixed(1)}</span>
+                          <span className="text-muted-foreground">({totalReviews} reviews)</span>
                         </>
                       ) : (
-                        <span className="text-sm text-muted-foreground">(0 reviews)</span>
+                        <span className="text-sm font-medium text-muted-foreground">New Talent</span>
                       )}
                     </div>
                   </div>
@@ -111,12 +190,6 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
                             <div className="flex items-center gap-1">
                               <Building className="w-4 h-4" />
                               <span>{profile.company}</span>
-                            </div>
-                          )}
-                          {profile.memberSince && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              <span>Member since {profile.memberSince}</span>
                             </div>
                           )}
                         </div>
@@ -154,24 +227,98 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
 
             {/* Profile Content Tabs */}
             <Tabs defaultValue="about" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="about">About</TabsTrigger>
                 <TabsTrigger value="projects">Past Projects</TabsTrigger>
+                <TabsTrigger value="reviews">Reviews</TabsTrigger>
               </TabsList>
 
               <TabsContent value="about" className="space-y-6">
-                {profile.bio && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>About</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle>About</CardTitle>
+                    {isSelf && !isEditingAbout && (
+                      <Button variant="ghost" size="sm" onClick={() => setIsEditingAbout(true)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {isEditingAbout ? (
+                      <>
+                        <Textarea
+                          value={aboutValue}
+                          onChange={(event) => setAboutValue(event.target.value)}
+                          placeholder="Describe your company, goals, and what you're looking for."
+                          className="min-h-[160px]"
+                        />
+                        {aboutError && <p className="text-sm text-destructive">{aboutError}</p>}
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCancelAboutEdit}
+                            disabled={isSavingAbout}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveAbout}
+                            disabled={isSavingAbout}
+                          >
+                            {isSavingAbout && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Save
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
                       <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                        {profile.bio}
+                        {aboutValue?.trim()
+                          ? aboutValue
+                          : isSelf
+                          ? 'Add a short description about your company.'
+                          : 'No description provided yet.'}
                       </p>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle>Languages</CardTitle>
+                    {isSelf && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditLanguagesOpen(true)}
+                        disabled={isSavingLanguages}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    {languages.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {languages.map((language) => (
+                          <Badge key={language} variant="secondary" className="text-sm py-1 px-3">
+                            {language}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        {isSelf ? 'Add the languages you speak to help experts connect with you.' : 'No languages listed'}
+                      </p>
+                    )}
+                    {isSavingLanguages && (
+                      <p className="text-xs text-muted-foreground mt-2">Saving changes...</p>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {profile.lookingFor.length > 0 && (
                   <Card>
@@ -243,6 +390,60 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
                   </Card>
                 )}
               </TabsContent>
+
+              <TabsContent value="reviews" className="space-y-6">
+                {profile.reviews.length > 0 ? (
+                  profile.reviews.map((review) => (
+                    <Card key={review.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          <Avatar>
+                            <AvatarImage src={review.reviewer_avatar || undefined} />
+                            <AvatarFallback>{getInitials(review.reviewer_name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <div>
+                                <p className="font-medium">{review.reviewer_name}</p>
+                                {review.project_title && (
+                                  <p className="text-sm text-muted-foreground">{review.project_title}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 mb-1">
+                                  {Array.from({ length: review.rating }).map((_, i) => (
+                                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                  ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(review.created_at).toLocaleDateString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-muted-foreground mb-2">{review.comment}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Badge variant="outline">Rating: {review.rating}/5</Badge>
+                              {review.project_title && (
+                                <Badge variant="secondary">{review.project_title}</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <p className="text-muted-foreground">No reviews yet</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
             </Tabs>
           </div>
 
@@ -267,10 +468,6 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
                 <div className="flex justify-between">
                   <span className="text-sm">Total Spent</span>
                   <span className="font-medium">{profile.stats.totalSpent}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Repeat Experts</span>
-                  <span className="font-medium">{profile.stats.repeatExperts}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Avg. Project Size</span>
@@ -346,6 +543,15 @@ export function ClientProfile({ profile, clientId, isOwnProfile = false, onNavig
         profileName={profile.name}
         profileTitle={profile.title}
       />
+
+      {isSelf && (
+        <EditLanguagesDialog
+          open={editLanguagesOpen}
+          onOpenChange={setEditLanguagesOpen}
+          languages={languages}
+          onToggle={handleToggleLanguage}
+        />
+      )}
     </div>
   );
 }

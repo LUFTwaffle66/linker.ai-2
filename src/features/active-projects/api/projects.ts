@@ -1,3 +1,4 @@
+import { addDays, format, isValid } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import type {
   ProjectInfo,
@@ -7,6 +8,7 @@ import type {
   SendProjectMessageFormData,
 } from '../types';
 import { deriveProjectSnapshot } from '@/features/projects/utils/derive-project-status';
+import { formatDurationLabel } from '@/features/proposals/utils/duration';
 
 // API Error class
 export class ApiError extends Error {
@@ -96,6 +98,68 @@ export const getProject = async (projectId: string): Promise<ProjectInfo> => {
     console.error('Failed to load deliverables', deliverablesError);
   }
 
+  // Fetch proposals to derive the agreed-upon duration/timeline
+  const { data: projectProposals, error: proposalsError } = await supabase
+    .from('proposals')
+    .select('id, status, freelancer_id, timeline, duration_value, duration_unit, created_at')
+    .eq('project_id', projectId);
+
+  if (proposalsError) {
+    console.error('Failed to load proposals for timeline derivation', proposalsError);
+  }
+
+  const hiredProposal =
+    projectProposals?.find(
+      (proposal: any) =>
+        proposal.status === 'accepted' &&
+        (!data.hired_freelancer_id || proposal.freelancer_id === data.hired_freelancer_id)
+    ) ??
+    projectProposals?.find(
+      (proposal: any) => data.hired_freelancer_id && proposal.freelancer_id === data.hired_freelancer_id
+    ) ??
+    projectProposals?.find((proposal: any) => proposal.status === 'accepted');
+
+  const convertDurationToDays = (
+    value?: number | null,
+    unit?: 'days' | 'weeks' | 'months' | null
+  ) => {
+    if (!value || !unit) return null;
+    if (unit === 'months') return value * 30;
+    if (unit === 'weeks') return value * 7;
+    return value;
+  };
+
+  const safeParseDate = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return isValid(parsed) ? parsed : null;
+  };
+
+  const agreedDurationValue = hiredProposal?.duration_value ?? null;
+  const agreedDurationUnit = hiredProposal?.duration_unit ?? null;
+  const agreedDurationDays = convertDurationToDays(agreedDurationValue, agreedDurationUnit);
+  const startedAt = data.started_at ?? data.published_at ?? data.created_at;
+  const parsedStartDate = safeParseDate(startedAt);
+
+  const computedDeadline = parsedStartDate && agreedDurationDays
+    ? addDays(parsedStartDate, agreedDurationDays)
+    : null;
+
+  const deadlineDate = computedDeadline && isValid(computedDeadline)
+    ? computedDeadline.toISOString()
+    : null;
+
+  const agreedDurationLabel =
+    hiredProposal?.timeline ||
+    (agreedDurationValue && agreedDurationUnit
+      ? formatDurationLabel(agreedDurationValue, agreedDurationUnit)
+      : null);
+
+  const deadlineLabel =
+    (computedDeadline && isValid(computedDeadline) ? format(computedDeadline, 'MMM d') : null) ||
+    agreedDurationLabel ||
+    data.timeline;
+
   const derivedSnapshot = deriveProjectSnapshot({
     project: data,
     paymentIntents,
@@ -120,8 +184,12 @@ export const getProject = async (projectId: string): Promise<ProjectInfo> => {
     upfrontDate: derivedSnapshot.upfrontDate || data.created_at,
     finalPaid: derivedSnapshot.finalPaid,
     finalDate: derivedSnapshot.finalDate,
-    startDate: data.created_at,
-    deadline: data.timeline,
+    startDate: startedAt,
+    startedAt,
+    durationValue: agreedDurationValue,
+    durationUnit: agreedDurationUnit,
+    deadline: deadlineLabel,
+    deadlineDate,
     progress: derivedSnapshot.progress,
     status: derivedSnapshot.status as ProjectInfo['status'],
     attachments: (data.attachments ?? []) as any[],

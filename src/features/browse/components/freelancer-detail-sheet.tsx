@@ -77,8 +77,9 @@ export function FreelancerDetailSheet({
 
   // Calculate stats
   const completedProjects = freelancer.portfolio?.length || 0;
-  const mockReviews = freelancer.experience * 10;
-  const mockRating = freelancer.experience >= 5 ? 5.0 : 4.8;
+  const averageRating = freelancer.user.average_rating ?? null;
+  const totalReviews = freelancer.user.total_reviews ?? 0;
+  const hasReviews = (totalReviews || 0) > 0;
 
   return (
     <>
@@ -103,11 +104,15 @@ export function FreelancerDetailSheet({
                 </div>
                 <SheetDescription className="mb-2">{freelancer.title}</SheetDescription>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{mockRating}</span>
-                    <span className="text-muted-foreground">({mockReviews} reviews)</span>
-                  </div>
+                  {hasReviews ? (
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium">{(averageRating ?? 0).toFixed(1)}</span>
+                      <span className="text-muted-foreground">({totalReviews} reviews)</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground">New Talent</span>
+                  )}
                   <span className="flex items-center gap-1 text-muted-foreground">
                     <MapPin className="w-4 h-4" />
                     {freelancer.location}
@@ -166,8 +171,14 @@ export function FreelancerDetailSheet({
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Rating</p>
                   <div className="flex items-center gap-1">
-                    <p className="text-xl font-medium">{mockRating}</p>
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    {hasReviews ? (
+                      <>
+                        <p className="text-xl font-medium">{(averageRating ?? 0).toFixed(1)}</p>
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      </>
+                    ) : (
+                      <p className="text-sm font-medium text-muted-foreground">New Talent</p>
+                    )}
                   </div>
                 </div>
               </div>

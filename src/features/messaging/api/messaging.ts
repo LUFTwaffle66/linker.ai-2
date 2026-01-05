@@ -4,12 +4,13 @@ import type { Conversation, Message } from '../types';
 type UUID = string;
 
 export async function getConversations(userId: string): Promise<Conversation[]> {
-  const { data: conversationIds, error: idsError } = await supabase
+  const { data: participantRows, error: idsError } = await supabase
     .from('conversation_participants')
-    .select('conversation_id')
+    .select('conversation_id, unread_count, has_new_messages, user_id')
     .eq('user_id', userId);
 
   if (idsError) throw idsError;
+  if (!participantRows || participantRows.length === 0) return [];
 
   const { data, error } = await supabase
     .from('conversations')
@@ -20,11 +21,21 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       ),
       lastMessage: messages!last_message_id(*)
     `)
-    .in('id', conversationIds.map((c) => c.conversation_id))
+    .in('id', participantRows.map((c) => c.conversation_id))
     .order('updated_at', { ascending: false });
 
   if (error) throw error;
-  return data as any;
+  const participantMap = participantRows.reduce<Record<string, any[]>>((acc, row) => {
+    const list = acc[row.conversation_id] || [];
+    list.push(row);
+    acc[row.conversation_id] = list;
+    return acc;
+  }, {});
+
+  return (data || []).map((conversation: any) => ({
+    ...conversation,
+    conversation_participants: participantMap[conversation.id] || [],
+  })) as any;
 }
 
 export async function getMessages(conversationId: string, userId: string): Promise<Message[]> {

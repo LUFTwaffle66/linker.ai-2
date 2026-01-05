@@ -38,7 +38,7 @@ import { formatDistanceToNow } from 'date-fns';
 import type { ProposalWithDetails } from '@/features/proposals/api/proposals';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { calculateTimeLeft, formatDurationLabel } from '@/features/proposals/utils/duration';
+import { calculateTimeLeft } from '@/features/proposals/utils/duration';
 
 interface ProjectProposalsTabProps {
   projectId: string;
@@ -111,7 +111,6 @@ export function ProjectProposalsTab({
     );
   }
 
-  // NEW: Add an Error State
   if (isError) {
     return (
       <Alert variant="destructive">
@@ -183,13 +182,17 @@ export function ProjectProposalsTab({
         {proposals.map((proposal) => {
           const status = statusConfig[proposal.status];
           const submittedAt = formatDistanceToNow(new Date(proposal.created_at), { addSuffix: true });
-          const durationLabel =
-            formatDurationLabel(proposal.duration_value, proposal.duration_unit) || proposal.timeline;
+          
+          // ✅ FIX: Calculate Time Left and prefer that for display
           const timeLeft = calculateTimeLeft(
             proposal.duration_value,
             proposal.duration_unit,
             proposal.created_at
           );
+          
+          // If we have a time left calculation, use that. Otherwise fallback to raw timeline string.
+          const durationDisplay = timeLeft ? timeLeft.relativeText : proposal.timeline;
+
           const attachments = (proposal as any).attachments || [];
 
           return (
@@ -232,14 +235,10 @@ export function ProjectProposalsTab({
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <div className="flex items-center gap-2">
-                      <span>{durationLabel || 'Timeline not provided'}</span>
-                      {timeLeft && (
-                        <Badge variant="outline" className="text-xs">
-                          {timeLeft.relativeText}
-                        </Badge>
-                      )}
-                    </div>
+                    {/* ✅ FIX: Only showing the "in 7 days" style badge now */}
+                    <Badge variant="outline">
+                      {durationDisplay}
+                    </Badge>
                   </div>
                 </div>
 
@@ -253,8 +252,8 @@ export function ProjectProposalsTab({
                   </p>
                 </div>
 
-                {/* Attachments */}
-                {attachments.length > 0 && (
+                {/* ✅ FIX: Attachments - Enhanced Visibility Logic */}
+                {attachments && attachments.length > 0 && (
                   <>
                     <Separator />
                     <div>
@@ -264,19 +263,43 @@ export function ProjectProposalsTab({
                       </h4>
                       <div className="space-y-2">
                         {attachments.map((file: any, index: number) => {
-                          const fileName =
-                            file?.name ||
-                            file?.file_name ||
-                            file?.filename ||
-                            file?.title ||
-                            `Attachment ${index + 1}`;
-                          const fileUrl = file?.url || file?.publicUrl || file?.path || file?.signedUrl;
-                          const fileSize = file?.size || file?.file_size || file?.bytes;
+                          // Defensive check: is file totally empty?
+                          if (!file) return null;
+                          if (typeof file === 'object' && Object.keys(file).length === 0) return null;
+
+                          let fileUrl = '';
+                          let fileName = `Attachment ${index + 1}`;
+                          let fileSize: number | string | undefined = undefined;
+
+                          // 1. Handle String (e.g., "folder/file.pdf" or full URL)
+                          if (typeof file === 'string') {
+                             fileName = file.split('/').pop() || fileName;
+                             if (file.startsWith('http')) {
+                               fileUrl = file;
+                             } else {
+                               const supabaseProject = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                               fileUrl = `${supabaseProject}/storage/v1/object/public/project-files/${file}`;
+                             }
+                          } 
+                          // 2. Handle Object (e.g. { path: "...", name: "..." })
+                          else if (typeof file === 'object') {
+                             fileUrl = file.url || file.publicUrl || file.path || file.signedUrl || '';
+                             fileName = file.name || file.filename || file.file_name || fileName;
+                             fileSize = file.size || file.file_size || file.bytes;
+                             
+                             // If we have a path but no URL, construct it manually
+                             if (!fileUrl && file.path) {
+                               const supabaseProject = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                               fileUrl = `${supabaseProject}/storage/v1/object/public/project-files/${file.path}`;
+                             }
+                          }
+
+                          if (!fileUrl) return null;
 
                           return (
                             <a
                               key={fileName + index}
-                              href={fileUrl || undefined}
+                              href={fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted transition-colors"
@@ -293,11 +316,9 @@ export function ProjectProposalsTab({
                                       : fileSize}
                                   </span>
                                 )}
-                                {fileUrl && (
-                                  <Button variant="ghost" size="sm">
-                                    <Download className="w-4 h-4" />
-                                  </Button>
-                                )}
+                                <Button variant="ghost" size="sm">
+                                  <Download className="w-4 h-4" />
+                                </Button>
                               </div>
                             </a>
                           );

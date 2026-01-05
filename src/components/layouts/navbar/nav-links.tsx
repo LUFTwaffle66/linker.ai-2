@@ -31,12 +31,20 @@ export function NavLinks() {
         </Link>
       )}
       {user?.role === 'client' && (
-        <Link
-          href={paths.app.postProject.getHref()}
-          className="text-foreground hover:text-primary transition-colors font-medium"
-        >
-          Post Project
-        </Link>
+        <>
+          <Link
+            href={paths.public.examples.getHref()}
+            className="text-foreground hover:text-primary transition-colors"
+          >
+            Automation Examples
+          </Link>
+          <Link
+            href={paths.app.postProject.getHref()}
+            className="text-foreground hover:text-primary transition-colors font-medium"
+          >
+            Post Project
+          </Link>
+        </>
       )}
     </div>
   );

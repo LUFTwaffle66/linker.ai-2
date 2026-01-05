@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,16 +26,16 @@ import { paths } from '@/config/paths';
 import { ShareProfileDialog } from './share-profile-dialog';
 import { EditAboutDialog } from './edit-about-dialog';
 import { EditSkillsDialog } from './edit-skills-dialog';
+import { EditLanguagesDialog } from './edit-languages-dialog';
 import { EditPortfolioDialog } from './edit-portfolio-dialog';
 import { EditExperienceDialog } from './edit-experience-dialog';
 import {
   useUpdateFreelancerBio,
-  useUpdateFreelancerSkills,
-  useAddFreelancerPortfolio,
-  useAddFreelancerExperience,
 } from '../hooks/use-profile-mutations';
 import type { FreelancerProfileData } from '../types';
 import { useAuth } from '@/features/auth/lib/auth-client';
+import { supabase } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 interface FreelancerProfileProps {
   profile: FreelancerProfileData;
@@ -50,14 +50,27 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [editAboutOpen, setEditAboutOpen] = useState(false);
   const [editSkillsOpen, setEditSkillsOpen] = useState(false);
+  const [editLanguagesOpen, setEditLanguagesOpen] = useState(false);
   const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
   const [editExperienceOpen, setEditExperienceOpen] = useState(false);
 
+  const [skills, setSkills] = useState<string[]>(profile.skills || []);
+  const [languages, setLanguages] = useState<string[]>(profile.languages || []);
+  const [portfolio, setPortfolio] = useState<any[]>(profile.portfolio || []);
+  const [experiences, setExperiences] = useState<any[]>(profile.experience || []);
+  const [editingPortfolioItem, setEditingPortfolioItem] = useState<any>(null);
+  const [editingExperienceItem, setEditingExperienceItem] = useState<any>(null);
+  const [editingPortfolioIndex, setEditingPortfolioIndex] = useState<number | null>(null);
+  const [editingExperienceIndex, setEditingExperienceIndex] = useState<number | null>(null);
+
   // React Query mutation hooks
   const updateBioMutation = useUpdateFreelancerBio();
-  const updateSkillsMutation = useUpdateFreelancerSkills();
-  const addPortfolioMutation = useAddFreelancerPortfolio();
-  const addExperienceMutation = useAddFreelancerExperience();
+  useEffect(() => {
+    setSkills(profile.skills || []);
+    setLanguages(profile.languages || []);
+    setPortfolio(profile.portfolio || []);
+    setExperiences(profile.experience || []);
+  }, [profile.skills, profile.languages, profile.portfolio, profile.experience]);
 
   const handleSendMessage = () => {
     if (onNavigateToMessages) {
@@ -77,36 +90,108 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
     setEditAboutOpen(false);
   };
 
-  const handleSaveSkills = async (skills: string[]) => {
-    await updateSkillsMutation.mutateAsync({ userId: freelancerId, skills });
-    setEditSkillsOpen(false);
+  const handleSaveSkills = async (nextSkills: string[]) => {
+    setSkills(nextSkills);
+    const { error } = await supabase
+      .from('freelancer_profiles')
+      .update({ skills: nextSkills })
+      .eq('user_id', freelancerId);
+    if (error) {
+      console.error('Supabase Save Error:', error.message);
+      toast.error('Failed to save skills');
+    } else {
+      toast.success('Skills updated successfully!');
+    }
+  };
+
+  const handleSaveLanguages = async (nextLanguages: string[]) => {
+    setLanguages(nextLanguages);
+    const { error } = await supabase
+      .from('freelancer_profiles')
+      .update({ languages: nextLanguages })
+      .eq('user_id', freelancerId);
+
+    if (error) {
+      console.error('Supabase Save Error:', error.message);
+      toast.error('Failed to save languages');
+    } else {
+      toast.success('Languages updated successfully!');
+    }
   };
 
   const handleSavePortfolio = async (item: {
+    id?: string;
     title: string;
     description: string;
     tags: string[];
     imageUrl?: string;
     url?: string;
   }) => {
-    await addPortfolioMutation.mutateAsync({
-      userId: freelancerId,
-      portfolioItem: item,
-    });
+    const newItem = {
+      id: item.id || editingPortfolioItem?.id || crypto.randomUUID(),
+      ...editingPortfolioItem,
+      ...item,
+    };
+    const updatedPortfolio =
+      editingPortfolioIndex !== null
+        ? portfolio.map((p, idx) => (idx === editingPortfolioIndex ? newItem : p))
+        : [...portfolio, newItem];
+
+    const { error } = await supabase
+      .from('freelancer_profiles')
+      .update({ portfolio: updatedPortfolio })
+      .eq('user_id', freelancerId);
+
+    if (error) {
+      console.error('Supabase Save Error:', error.message);
+      toast.error('Failed to save portfolio item');
+      return;
+    }
+
+    setPortfolio(updatedPortfolio);
     setEditPortfolioOpen(false);
+    setEditingPortfolioItem(null);
+    setEditingPortfolioIndex(null);
   };
 
   const handleSaveExperience = async (experience: {
+    id?: string;
     position: string;
     company: string;
     period: string;
     description: string;
   }) => {
-    await addExperienceMutation.mutateAsync({ userId: freelancerId, experience });
+    const newExperience = {
+      id: experience.id || editingExperienceItem?.id || crypto.randomUUID(),
+      ...editingExperienceItem,
+      ...experience,
+    };
+    const updatedExperiences =
+      editingExperienceIndex !== null
+        ? experiences.map((exp, idx) => (idx === editingExperienceIndex ? newExperience : exp))
+        : [...experiences, newExperience];
+
+    const { error } = await supabase
+      .from('freelancer_profiles')
+      .update({ work_experience: updatedExperiences })
+      .eq('user_id', freelancerId);
+
+    if (error) {
+      console.error('Supabase Save Error:', error.message);
+      toast.error('Failed to save experience');
+      return;
+    }
+
+    setExperiences(updatedExperiences);
     setEditExperienceOpen(false);
+    setEditingExperienceItem(null);
+    setEditingExperienceIndex(null);
   };
 
   const isSelf = isOwnProfile || user?.id === freelancerId || user?.id === profile.id;
+  const averageRating = profile.average_rating ?? profile.rating ?? null;
+  const totalReviews = profile.total_reviews ?? profile.reviewCount ?? 0;
+  const hasReviews = (totalReviews || 0) > 0;
 
   const getInitials = (name: string) => {
     const names = name.split(' ');
@@ -138,14 +223,14 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                       </div>
                     )}
                     <div className="flex items-center gap-1">
-                      {profile.reviewCount > 0 ? (
+                      {hasReviews ? (
                         <>
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{profile.rating.toFixed(1)}</span>
-                          <span className="text-muted-foreground">({profile.reviewCount} reviews)</span>
+                          <span className="font-medium">{(averageRating ?? 0).toFixed(1)}</span>
+                          <span className="text-muted-foreground">({totalReviews} reviews)</span>
                         </>
                       ) : (
-                        <span className="text-sm text-muted-foreground">(0 reviews)</span>
+                        <span className="text-sm font-medium text-muted-foreground">New Talent</span>
                       )}
                     </div>
                   </div>
@@ -176,7 +261,7 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                         </div>
 
                         <div className="flex flex-wrap gap-2 mb-4">
-                          {profile.skills.slice(0, 5).map((skill) => (
+                          {skills.slice(0, 5).map((skill) => (
                             <Badge key={skill} variant="secondary">{skill}</Badge>
                           ))}
                         </div>
@@ -254,9 +339,9 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                     )}
                   </CardHeader>
                   <CardContent>
-                    {profile.skills.length > 0 ? (
+                    {skills.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {profile.skills.map((skill) => (
+                        {skills.map((skill) => (
                           <Badge key={skill} variant="secondary" className="text-sm py-1 px-3">
                             {skill}
                           </Badge>
@@ -301,18 +386,24 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
               </TabsContent>
 
               <TabsContent value="portfolio" className="space-y-6">
-                {profile.portfolio.length > 0 ? (
+                {portfolio.length > 0 ? (
                   <>
                     {isOwnProfile && (
                       <div className="flex justify-end mb-4">
-                        <Button onClick={() => setEditPortfolioOpen(true)}>
+                        <Button
+                          onClick={() => {
+                            setEditingPortfolioItem(null);
+                            setEditingPortfolioIndex(null);
+                            setEditPortfolioOpen(true);
+                          }}
+                        >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Portfolio Item
                         </Button>
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {profile.portfolio.map((item) => (
+                      {portfolio.map((item, idx) => (
                         <Card key={item.id} className="overflow-hidden">
                           {item.imageUrl ? (
                             <div className="aspect-video bg-muted flex items-center justify-center">
@@ -328,7 +419,16 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                               <h3 className="font-medium">{item.title}</h3>
                               <div className="flex gap-1">
                                 {isOwnProfile && (
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      setEditingPortfolioItem(item);
+                                      setEditingPortfolioIndex(idx);
+                                      setEditPortfolioOpen(true);
+                                    }}
+                                  >
                                     <Pencil className="w-4 h-4" />
                                   </Button>
                                 )}
@@ -343,9 +443,9 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                             </div>
                             <p className="text-sm text-muted-foreground mb-3">{item.description}</p>
                             <div className="flex flex-wrap gap-1">
-                              {item.tags.map((tag) => (
+                                {item.tags.map((tag: string) => (
                                 <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                              ))}
+                                ))}
                             </div>
                           </CardContent>
                         </Card>
@@ -356,7 +456,13 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                   <div className="space-y-4">
                     {isOwnProfile && (
                       <div className="flex justify-end">
-                        <Button onClick={() => setEditPortfolioOpen(true)}>
+                        <Button
+                          onClick={() => {
+                            setEditingPortfolioItem(null);
+                            setEditingPortfolioIndex(null);
+                            setEditPortfolioOpen(true);
+                          }}
+                        >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Portfolio Item
                         </Button>
@@ -380,27 +486,40 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                       <CardContent className="p-6">
                         <div className="flex items-start gap-4">
                           <Avatar>
-                            <AvatarImage src={review.avatar} />
-                            <AvatarFallback>{review.client.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={review.reviewer_avatar || undefined} />
+                            <AvatarFallback>
+                              {getInitials(review.reviewer_name)}
+                            </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-2">
                               <div>
-                                <p className="font-medium">{review.client}</p>
-                                <p className="text-sm text-muted-foreground">{review.project}</p>
+                                <p className="font-medium">{review.reviewer_name}</p>
+                                {review.project_title && (
+                                  <p className="text-sm text-muted-foreground">{review.project_title}</p>
+                                )}
                               </div>
                               <div className="text-right">
                                 <div className="flex items-center gap-1 mb-1">
-                                  {[...Array(review.rating)].map((_, i) => (
+                                  {Array.from({ length: review.rating }).map((_, i) => (
                                     <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                                   ))}
                                 </div>
-                                <p className="text-sm text-muted-foreground">{review.date}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(review.created_at).toLocaleDateString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}
+                                </p>
                               </div>
                             </div>
                             <p className="text-muted-foreground mb-2">{review.comment}</p>
-                            <div className="flex items-center gap-4 text-sm">
-                              <Badge variant="outline">{review.budget}</Badge>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Badge variant="outline">Rating: {review.rating}/5</Badge>
+                              {review.project_title && (
+                                <Badge variant="secondary">{review.project_title}</Badge>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -417,11 +536,17 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
               </TabsContent>
 
               <TabsContent value="experience" className="space-y-6">
-                {profile.experience.length > 0 ? (
+                {experiences.length > 0 ? (
                   <>
                     {isOwnProfile && (
                       <div className="flex justify-end mb-4">
-                        <Button onClick={() => setEditExperienceOpen(true)}>
+                        <Button
+                          onClick={() => {
+                            setEditingExperienceItem(null);
+                            setEditingExperienceIndex(null);
+                            setEditExperienceOpen(true);
+                          }}
+                        >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Experience
                         </Button>
@@ -433,13 +558,18 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                       </CardHeader>
                       <CardContent className="space-y-6">
                         <div className="border-l-2 border-muted pl-4 space-y-6">
-                          {profile.experience.map((exp, idx) => (
+                          {experiences.map((exp, idx) => (
                             <div key={idx} className="group relative">
                               {isOwnProfile && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="absolute -right-2 -top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    setEditingExperienceItem(exp);
+                                    setEditingExperienceIndex(idx);
+                                    setEditExperienceOpen(true);
+                                  }}
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Button>
@@ -457,7 +587,13 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                   <div className="space-y-4">
                     {isOwnProfile && (
                       <div className="flex justify-end">
-                        <Button onClick={() => setEditExperienceOpen(true)}>
+                        <Button
+                          onClick={() => {
+                            setEditingExperienceItem(null);
+                            setEditingExperienceIndex(null);
+                            setEditExperienceOpen(true);
+                          }}
+                        >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Experience
                         </Button>
@@ -525,10 +661,6 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
                   <span className="font-medium">{profile.stats.totalEarnings}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm">Repeat Clients</span>
-                  <span className="font-medium">{profile.stats.repeatClients}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-sm">On-Time Delivery</span>
                   <span className="font-medium">{profile.stats.onTimeDelivery}</span>
                 </div>
@@ -536,21 +668,38 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
             </Card>
 
             {/* Languages */}
-            {profile.languages.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Languages</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {profile.languages.map((lang, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <span className="text-sm">{lang.language}</span>
-                      <span className="text-sm text-muted-foreground">{lang.proficiency}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle>Languages</CardTitle>
+                {isOwnProfile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditLanguagesOpen(true)}
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {languages.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {languages.map((language) => (
+                      <Badge key={language} variant="secondary" className="text-sm py-1 px-3">
+                        {language}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {isOwnProfile
+                      ? 'Add the languages you speak to help clients find you.'
+                      : 'No languages listed'}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -577,19 +726,52 @@ export function FreelancerProfile({ profile, freelancerId, isOwnProfile = false,
           <EditSkillsDialog
             open={editSkillsOpen}
             onOpenChange={setEditSkillsOpen}
-            currentSkills={profile.skills}
-            onSave={handleSaveSkills}
+            selectedSkills={skills}
+            onToggle={async (skill) => {
+              const exists = skills.includes(skill);
+              const updated = exists
+                ? skills.filter((s) => s !== skill)
+                : [...skills, skill];
+              await handleSaveSkills(updated);
+            }}
+          />
+
+          <EditLanguagesDialog
+            open={editLanguagesOpen}
+            onOpenChange={setEditLanguagesOpen}
+            languages={languages}
+            onToggle={async (language) => {
+              const exists = languages.includes(language);
+              const updated = exists
+                ? languages.filter((l) => l !== language)
+                : [...languages, language];
+              await handleSaveLanguages(updated);
+            }}
           />
 
           <EditPortfolioDialog
             open={editPortfolioOpen}
-            onOpenChange={setEditPortfolioOpen}
+            onOpenChange={(open) => {
+              setEditPortfolioOpen(open);
+              if (!open) {
+                setEditingPortfolioItem(null);
+                setEditingPortfolioIndex(null);
+              }
+            }}
+            initialValues={editingPortfolioItem}
             onSave={handleSavePortfolio}
           />
 
           <EditExperienceDialog
             open={editExperienceOpen}
-            onOpenChange={setEditExperienceOpen}
+            onOpenChange={(open) => {
+              setEditExperienceOpen(open);
+              if (!open) {
+                setEditingExperienceItem(null);
+                setEditingExperienceIndex(null);
+              }
+            }}
+            initialValues={editingExperienceItem}
             onSave={handleSaveExperience}
           />
         </>

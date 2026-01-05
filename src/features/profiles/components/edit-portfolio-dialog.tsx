@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import { X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PortfolioItem {
-  id: number;
+  id: string;
   title: string;
   description: string;
   tags: string[];
@@ -28,22 +28,30 @@ interface PortfolioItem {
 interface EditPortfolioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  portfolioItem?: PortfolioItem;
-  onSave: (item: Omit<PortfolioItem, 'id'>) => Promise<void>;
+  initialValues?: PortfolioItem | null;
+  onSave: (item: PortfolioItem) => Promise<void>;
 }
 
 export function EditPortfolioDialog({
   open,
   onOpenChange,
-  portfolioItem,
+  initialValues,
   onSave,
 }: EditPortfolioDialogProps) {
-  const [title, setTitle] = useState(portfolioItem?.title || '');
-  const [description, setDescription] = useState(portfolioItem?.description || '');
-  const [imageUrl, setImageUrl] = useState(portfolioItem?.imageUrl || '');
-  const [tags, setTags] = useState<string[]>(portfolioItem?.tags || []);
+  const [title, setTitle] = useState(initialValues?.title || '');
+  const [description, setDescription] = useState(initialValues?.description || '');
+  const [imageUrl, setImageUrl] = useState(initialValues?.imageUrl || '');
+  const [tags, setTags] = useState<string[]>(initialValues?.tags || []);
   const [newTag, setNewTag] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setTitle(initialValues?.title || '');
+    setDescription(initialValues?.description || '');
+    setImageUrl(initialValues?.imageUrl || '');
+    setTags(initialValues?.tags || []);
+    setNewTag('');
+  }, [initialValues, open]);
 
   const handleAddTag = () => {
     const trimmedTag = newTag.trim();
@@ -73,12 +81,13 @@ export function EditPortfolioDialog({
     setIsLoading(true);
     try {
       await onSave({
+        id: initialValues?.id || crypto.randomUUID(),
         title: title.trim(),
         description: description.trim(),
         tags,
         imageUrl: imageUrl.trim() || undefined,
       });
-      toast.success(portfolioItem ? 'Portfolio item updated!' : 'Portfolio item added!');
+      toast.success(initialValues ? 'Portfolio item updated!' : 'Portfolio item added!');
       onOpenChange(false);
     } catch (error) {
       toast.error('Failed to save portfolio item');
@@ -92,7 +101,7 @@ export function EditPortfolioDialog({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {portfolioItem ? 'Edit Portfolio Item' : 'Add Portfolio Item'}
+            {initialValues ? 'Edit Portfolio Item' : 'Add Portfolio Item'}
           </DialogTitle>
           <DialogDescription>
             Showcase your best work and achievements
@@ -182,7 +191,7 @@ export function EditPortfolioDialog({
           </Button>
           <Button onClick={handleSave} disabled={isLoading} type="button">
             {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {portfolioItem ? 'Update' : 'Add'} Portfolio Item
+            {initialValues ? 'Update' : 'Add'} Portfolio Item
           </Button>
         </DialogFooter>
       </DialogContent>

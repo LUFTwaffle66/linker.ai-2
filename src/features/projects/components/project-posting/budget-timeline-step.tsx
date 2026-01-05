@@ -1,4 +1,4 @@
-import { DollarSign } from 'lucide-react';
+import { Calculator, Clock, Lightbulb, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,49 @@ export function BudgetTimelineStep({
           <CardTitle>Budget & Timeline</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Estimation Guide */}
+          <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-medium">
+              <Lightbulb className="w-4 h-4" />
+              <span>How to estimate?</span>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-foreground font-medium text-xs uppercase tracking-wide">
+                  <Calculator className="w-3 h-3" /> Budget (ROI Method)
+                </div>
+                <p>
+                  Don&apos;t guess. Calculate the value:
+                  <br />
+                  <span className="italic">
+                    &quot;If this tool saves me 10 hours/month at $50/hr, that&apos;s $500/mo value.&quot;
+                  </span>
+                </p>
+                <p className="text-foreground/90 font-medium">
+                  → Recommendation: Budget 3-4 months of that value (e.g., $1,500 - $2,000).
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-foreground font-medium text-xs uppercase tracking-wide">
+                  <Clock className="w-3 h-3" /> Realistic Timeline
+                </div>
+                <ul className="list-disc list-inside space-y-1 ml-1">
+                  <li>
+                    <strong>1-2 Weeks:</strong> Simple scripts &amp; automations.
+                  </li>
+                  <li>
+                    <strong>4-8 Weeks:</strong> Custom dashboards or tools.
+                  </li>
+                  <li>
+                    <strong>3+ Months:</strong> Complex AI products.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           <FormField
             control={control}
             name="budgetAmount"

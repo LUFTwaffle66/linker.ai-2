@@ -19,6 +19,8 @@ export interface BrowseProject {
   published_at?: string | null;
   duration_value?: number | null;
   duration_unit?: 'days' | 'weeks' | 'months' | null;
+  // This defines what the attachments look like
+  attachments?: string[] | { name: string; url: string; size?: number }[] | null;
   client: {
     id: string;
     full_name: string;
@@ -42,6 +44,8 @@ export interface BrowseFreelancer {
     id: string;
     full_name: string;
     avatar_url: string | null;
+    average_rating?: number | null;
+    total_reviews?: number | null;
   };
 }
 
@@ -78,7 +82,8 @@ export async function fetchBrowseProjects(filters?: BrowseFilters) {
         full_name,
         company_name,
         avatar_url
-      )
+      ),
+      proposals(count)
     `)
     .eq('is_published', true)
     .eq('status', 'open');
@@ -113,7 +118,13 @@ export async function fetchBrowseProjects(filters?: BrowseFilters) {
   const { data, error } = await query;
 
   if (error) throw error;
-  return data as BrowseProject[];
+  return (data || []).map((project: any) => {
+    const proposalCount = project?.proposals?.[0]?.count ?? project?.proposal_count ?? 0;
+    return {
+      ...project,
+      proposal_count: proposalCount,
+    } as BrowseProject;
+  });
 }
 
 /**
@@ -129,7 +140,8 @@ export async function fetchFeaturedProjects(limit: number = 6) {
         full_name,
         company_name,
         avatar_url
-      )
+      ),
+      proposals(count)
     `)
     .eq('is_published', true)
     .eq('is_featured', true)
@@ -138,7 +150,13 @@ export async function fetchFeaturedProjects(limit: number = 6) {
     .limit(limit);
 
   if (error) throw error;
-  return data as BrowseProject[];
+  return (data || []).map((project: any) => {
+    const proposalCount = project?.proposals?.[0]?.count ?? project?.proposal_count ?? 0;
+    return {
+      ...project,
+      proposal_count: proposalCount,
+    } as BrowseProject;
+  });
 }
 
 /**
@@ -152,7 +170,9 @@ export async function fetchBrowseFreelancers(filters?: FreelancerFilters) {
       user:users!freelancer_profiles_user_id_fkey(
         id,
         full_name,
-        avatar_url
+        avatar_url,
+        average_rating,
+        total_reviews
       )
     `)
     .eq('onboarding_completed', true);
@@ -205,7 +225,9 @@ export async function fetchTopFreelancers(limit: number = 8) {
       user:users!freelancer_profiles_user_id_fkey(
         id,
         full_name,
-        avatar_url
+        avatar_url,
+        average_rating,
+        total_reviews
       )
     `)
     .eq('onboarding_completed', true)
@@ -284,7 +306,9 @@ export async function fetchFreelancersByIds(ids: string[]) {
       user:users!freelancer_profiles_user_id_fkey(
         id,
         full_name,
-        avatar_url
+        avatar_url,
+        average_rating,
+        total_reviews
       )
     `)
     .in('user_id', ids);

@@ -2,9 +2,11 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import type { FreelancerProfileData } from '../types';
 import {
   updateFreelancerBio,
   updateFreelancerSkills,
+  updateFreelancerLanguages,
   addFreelancerPortfolio,
   updateFreelancerPortfolio,
   deleteFreelancerPortfolio,
@@ -44,6 +46,11 @@ export function useUpdateFreelancerSkills() {
     mutationFn: ({ userId, skills }: { userId: string; skills: string[] }) =>
       updateFreelancerSkills(userId, skills),
     onSuccess: (_, variables) => {
+      queryClient.setQueryData(
+        profileKeys.freelancer(variables.userId),
+        (prev: FreelancerProfileData | undefined) =>
+          prev ? { ...prev, skills: variables.skills } : prev
+      );
       queryClient.invalidateQueries({
         queryKey: profileKeys.freelancer(variables.userId),
       });
@@ -51,6 +58,32 @@ export function useUpdateFreelancerSkills() {
     },
     onError: (error: any) => {
       toast.error(error?.message || 'Failed to update skills');
+    },
+  });
+}
+
+/**
+ * Hook for updating freelancer languages
+ */
+export function useUpdateFreelancerLanguages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, languages }: { userId: string; languages: string[] }) =>
+      updateFreelancerLanguages(userId, languages),
+    onSuccess: (_, variables) => {
+      queryClient.setQueryData(
+        profileKeys.freelancer(variables.userId),
+        (prev: FreelancerProfileData | undefined) =>
+          prev ? { ...prev, languages: variables.languages } : prev
+      );
+      queryClient.invalidateQueries({
+        queryKey: profileKeys.freelancer(variables.userId),
+      });
+      toast.success('Languages updated successfully!');
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Failed to update languages');
     },
   });
 }
