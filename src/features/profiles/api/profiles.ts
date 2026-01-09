@@ -176,7 +176,7 @@ export const getClientProfile = async (userId: string): Promise<ClientProfileDat
         (acceptedProposal as any)?.freelancer?.full_name ||
         (project.hired_freelancer_id ? 'Hired Expert' : 'Not hired yet');
 
-      const statusLabel =
+      const statusLabel: 'Completed' | 'Cancelled' | 'In Progress' =
         project.status === 'completed'
           ? 'Completed'
           : project.status === 'cancelled'
